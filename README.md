@@ -2,33 +2,35 @@
 
 Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a privacy-hardened macOS environment from scratch.
 
-## Quick Start (New Machine)
+## New Machine Setup
+
+### Step 1: Run chezmoi (automated)
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply edjchapman
 ```
 
-This will:
-1. Install Homebrew
-2. Install all packages from `Brewfile`
-3. Apply macOS privacy & security defaults
+This automatically:
+- Installs Homebrew (if missing)
+- Installs all packages from `Brewfile` (browsers, dev tools, privacy tools, etc.)
+- Applies macOS privacy defaults (telemetry, ads, Spotlight, AirDrop, screen lock)
 
-## What's Automated
+### Step 2: Run sudo script (manual, requires password)
 
-| Layer | Tool | Config |
-|-------|------|--------|
-| Packages | Homebrew Brewfile | `Brewfile` |
-| macOS defaults | `defaults write` | `run_onchange_03-macos-defaults.sh` |
-| DNS | NextDNS (config: `REDACTED`) | Installed via Brewfile, activated in setup script |
-| Firewall (inbound) | macOS built-in | Enabled + stealth mode in setup script |
-| Firewall (outbound) | LuLu | Installed via Brewfile |
-| VPN | NordVPN | Installed via Brewfile |
+```bash
+~/.config/chezmoi/scripts/macos-sudo.sh
+```
 
-## Manual Steps After Setup
+This requires your password and:
+- Enables macOS firewall + stealth mode
+- Disables remote Apple events
+- Installs and activates NextDNS (encrypted DNS, config `REDACTED`)
 
-These can't be automated and need to be done in-app:
+### Step 3: Configure apps (manual, in-app only)
 
-### Brave Browser
+These settings can't be automated:
+
+**Brave Browser** (default browser — set via System Settings > Default Browser)
 - Settings > Shields > Trackers & ads: **Aggressive**
 - Settings > Shields > Fingerprinting: **Strict**
 - Settings > Shields > Upgrade connections to HTTPS
@@ -36,35 +38,52 @@ These can't be automated and need to be done in-app:
 - Settings > Privacy > Clear browsing data on exit: **enabled**
 - Install Dashlane extension
 
-### Firefox
+**Firefox**
 - Settings > Search > Default: **DuckDuckGo**
 - Install Dashlane extension
 - Install Multi-Account Containers extension (optional)
 
-### NordVPN
+**NordVPN**
 - Kill Switch: **Enabled**
 - Protocol: **NordLynx**
 - Auto-connect: **On startup / untrusted Wi-Fi**
 - Threat Protection: **Enabled**
 - Analytics/crash reports: **Disabled**
 
-### LuLu
+**LuLu** (outbound firewall)
 - Launch and approve System Extension
-- Grant Network Extension permission
+- Grant Network Extension permission in System Settings > Privacy & Security
 - Review connection alerts as they appear
 
-### NextDNS
-- Requires sudo: `sudo nextdns install -config REDACTED -report-client-info -auto-activate`
+**NextDNS**
 - Manage blocklists at https://my.nextdns.io/REDACTED/setup
 - Recommended: enable OISD + NextDNS Ads & Trackers blocklists
 
-### Mac App Store
-- Install Amphetamine manually
+**Mac App Store** (not automatable via Homebrew)
+- Install Amphetamine
+
+## What's In the Box
+
+| Layer | Tool | What it does |
+|-------|------|--------------|
+| Packages | Homebrew `Brewfile` | All CLI tools, desktop apps, VS Code extensions |
+| macOS defaults | `run_onchange_03-macos-defaults.sh` | Telemetry, ads, Spotlight, Siri, screen lock, AirDrop |
+| Firewall + DNS | `~/.config/chezmoi/scripts/macos-sudo.sh` | Firewall, stealth mode, NextDNS activation |
+| Firewall (outbound) | LuLu | Monitors/blocks apps phoning home |
+| VPN | NordVPN | Encrypted tunnel with kill switch |
+| DNS (when VPN off) | NextDNS (config `REDACTED`) | Encrypted DNS + ad/tracker blocking |
+| Browser | Brave (default) | Strict shields, fingerprint blocking |
+| Browser | Firefox | Work/logged-in sessions |
+| Browser | Tor | Sensitive/anonymous browsing |
+| Search | DuckDuckGo | Default across all browsers |
+| Passwords | Dashlane | Browser extension (install manually) |
 
 ## DNS + VPN Coexistence
 
 - **VPN on:** NordVPN handles DNS (encrypted within tunnel)
 - **VPN off:** NextDNS handles DNS (encrypted DoH with ad/tracker blocking)
+
+Both are no-log. No configuration conflict — they take turns.
 
 ## Ongoing Practices
 
@@ -78,3 +97,13 @@ These can't be automated and need to be done in-app:
 - [ ] Consider Signal for sensitive messaging (over WhatsApp)
 - [ ] Consider ProtonMail for sensitive email (over Gmail)
 - [ ] Consider email aliases (SimpleLogin) to mask your real email on signups
+
+## Updating
+
+To add/remove packages, edit `Brewfile` in `~/.local/share/chezmoi/` then:
+
+```bash
+chezmoi apply    # re-runs brew bundle because Brewfile hash changed
+chezmoi cd       # shortcut to open the source directory
+cd ~/.local/share/chezmoi && git add -A && git commit -m "update" && git push
+```

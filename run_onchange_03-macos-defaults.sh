@@ -1,28 +1,22 @@
 #!/bin/bash
-# macOS Privacy & Security Defaults
+# macOS Privacy & Security Defaults — non-sudo settings
 # chezmoi run_onchange: re-runs when this file changes
-# Each section will be filled in during the corresponding plan step
 
 set -euo pipefail
 
-echo "Applying macOS privacy & security defaults..."
+echo "Applying macOS privacy & security defaults (non-sudo)..."
 
 # =============================================================================
-# Firewall & System Security
+# Screen Lock
 # =============================================================================
-
-# Enable application firewall
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
-
-# Enable stealth mode (don't respond to pings/port scans from unrecognized sources)
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
-
-# Disable remote Apple events
-sudo systemsetup -setremoteappleevents off 2>/dev/null || true
 
 # Require password immediately after sleep or screen saver begins
 defaults write com.apple.screensaver askForPassword -int 1
 defaults write com.apple.screensaver askForPasswordDelay -int 0
+
+# =============================================================================
+# AirDrop
+# =============================================================================
 
 # Disable AirDrop discoverability by default
 defaults write com.apple.sharingd DiscoverableMode -string "Off"
@@ -50,10 +44,6 @@ defaults write com.apple.AdLib allowApplePersonalizedAdvertising -bool false
 # Disable Spotlight web suggestions (sends search queries to Apple)
 defaults write com.apple.lookup.shared LookupSuggestionsDisabled -bool true
 
-# Disable Safari suggestions in Spotlight
-defaults write com.apple.Safari UniversalSearchEnabled -bool false
-defaults write com.apple.Safari SuppressSearchSuggestions -bool true
-
 # Disable Siri suggestions in Spotlight
 defaults write com.apple.Siri SiriCanLearnFromAppBlacklist -string "()"
 defaults write com.apple.Siri StatusMenuVisible -bool false
@@ -62,59 +52,17 @@ defaults write com.apple.Siri StatusMenuVisible -bool false
 defaults write com.apple.Siri LockscreenEnabled -bool false
 
 # =============================================================================
-# DNS — NextDNS (encrypted DNS with ad/tracker blocking)
-# =============================================================================
-
-# Install and activate NextDNS system-wide
-# Config ID: REDACTED — manage blocklists at https://my.nextdns.io/REDACTED/setup
-if command -v nextdns &>/dev/null; then
-    sudo nextdns install -config REDACTED -report-client-info -auto-activate
-    sudo nextdns activate
-    echo "NextDNS configured and activated."
-else
-    echo "WARNING: nextdns not found. Install via: brew install nextdns"
-fi
-
-# =============================================================================
-# Browser — Brave is default (set manually via System Settings > Default Browser)
-# Recommended Brave settings (must be set in-app):
-#   - Shields: Aggressive (block trackers & ads, block fingerprinting strict)
-#   - HTTPS: Upgrade all connections to HTTPS
-#   - Search engine: DuckDuckGo or Brave Search
-#   - Clear browsing data on exit: enabled
-#   - Send "Do Not Track": enabled
-#   - Block third-party cookies: enabled
-# =============================================================================
-
-# =============================================================================
-# VPN — NordVPN (GUI-only, settings must be configured manually)
-# Recommended settings:
-#   - Kill Switch: Enabled
-#   - Protocol: NordLynx (WireGuard-based)
-#   - Auto-connect: On startup / on untrusted Wi-Fi
-#   - Threat Protection: Enabled
-#   - DNS: Default (NordVPN DNS when VPN active, NextDNS when VPN off)
-#   - Analytics/crash reports: Disabled
-# DNS coexistence: NordVPN handles DNS when active, NextDNS handles when off
-# =============================================================================
-
-# =============================================================================
 # Search Engine — DuckDuckGo as default
 # =============================================================================
 
 # Set DuckDuckGo as default search in Safari (for when Safari is used)
-defaults write com.apple.Safari SearchProviderShortName -string "DuckDuckGo"
-
-# Brave and Firefox search engines must be set in-app:
-#   Brave:   Settings > Search engine > DuckDuckGo
-#   Firefox: Settings > Search > Default Search Engine > DuckDuckGo
-
-# =============================================================================
-# Password Manager — Dashlane (browser extension + web app, no brew cask)
-# Install Dashlane extension in Brave and Firefox manually
-# =============================================================================
+defaults write com.apple.Safari SearchProviderShortName -string "DuckDuckGo" 2>/dev/null || true
 
 echo ""
-echo "macOS defaults applied."
+echo "Non-sudo macOS defaults applied."
 echo "Some changes require a logout or restart to take effect."
-echo "Firewall and stealth mode are now active."
+echo ""
+echo "============================================================"
+echo "MANUAL: Run the sudo commands in run_once_04-macos-sudo.sh"
+echo "See README.md for full manual steps."
+echo "============================================================"

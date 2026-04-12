@@ -1,10 +1,9 @@
 # Homebrew Bundle — managed by chezmoi
-# Run: brew bundle --file=~/Brewfile
-# To update: brew bundle dump --file=~/Brewfile --force
+# Applied automatically by chezmoi when this file changes
+# To add packages: edit this file, then run `chezmoi apply`
 
 # Taps
 tap "aws/tap"
-tap "homebrew/cask"
 
 # CLI Tools
 brew "bash"
@@ -50,7 +49,6 @@ brew "uwsgi"
 
 # Security & Privacy
 brew "ggshield"
-brew "gpg-suite"
 brew "nextdns"
 
 # Cloud
@@ -59,6 +57,7 @@ brew "aws/tap/lightsailctl"
 # Desktop Apps — Browsers
 cask "brave-browser"
 cask "firefox"
+cask "tor-browser"
 
 # Desktop Apps — Dev Tools
 cask "claude"
@@ -86,6 +85,7 @@ cask "font-iosevka"
 cask "raspberry-pi-imager"
 
 # Desktop Apps — Privacy & Security
+cask "gpg-suite"
 cask "lulu"
 cask "nordvpn"
 
