@@ -65,6 +65,7 @@ cask "claude"
 cask "claude-code"
 cask "cursor"
 cask "iterm2"
+cask "jetbrains-toolbox"
 cask "orbstack"
 cask "pgadmin4"
 cask "postgres-app"
@@ -98,8 +99,15 @@ cask "steam"
 cask "tidal"
 cask "whatsapp"
 
+# Desktop Apps — Crypto
+cask "monero-wallet"
+cask "sparrow"
+
 # Desktop Apps — Other
 cask "algoapp"
+
+# Mac App Store (install manually)
+# - Amphetamine (keeps Mac awake)
 
 # VS Code Extensions
 vscode "ahmadalli.vscode-nginx-conf"
