@@ -85,6 +85,7 @@ cask "font-iosevka"
 cask "raspberry-pi-imager"
 
 # Desktop Apps — Privacy & Security
+cask "lulu"
 cask "nordvpn"
 
 # Desktop Apps — AI
