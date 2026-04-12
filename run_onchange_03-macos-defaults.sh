@@ -76,7 +76,18 @@ else
 fi
 
 # =============================================================================
-# Step 9: Search Engine Defaults
+# Browser — Brave is default (set manually via System Settings > Default Browser)
+# Recommended Brave settings (must be set in-app):
+#   - Shields: Aggressive (block trackers & ads, block fingerprinting strict)
+#   - HTTPS: Upgrade all connections to HTTPS
+#   - Search engine: DuckDuckGo or Brave Search
+#   - Clear browsing data on exit: enabled
+#   - Send "Do Not Track": enabled
+#   - Block third-party cookies: enabled
+# =============================================================================
+
+# =============================================================================
+# Search Engine Defaults
 # =============================================================================
 # (To be configured in Step 9)
 
