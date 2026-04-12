@@ -1,0 +1,5 @@
+# chezmoi config template
+# On `chezmoi init`, this prompts for machine-specific values
+
+[data]
+    email = "{{ promptStringOnce . "email" "Email address" }}"
