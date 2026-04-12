@@ -62,9 +62,18 @@ defaults write com.apple.Siri StatusMenuVisible -bool false
 defaults write com.apple.Siri LockscreenEnabled -bool false
 
 # =============================================================================
-# Step 2: DNS Configuration
+# DNS — NextDNS (encrypted DNS with ad/tracker blocking)
 # =============================================================================
-# (To be configured in Step 2)
+
+# Install and activate NextDNS system-wide
+# Config ID: REDACTED — manage blocklists at https://my.nextdns.io/REDACTED/setup
+if command -v nextdns &>/dev/null; then
+    sudo nextdns install -config REDACTED -report-client-info -auto-activate
+    sudo nextdns activate
+    echo "NextDNS configured and activated."
+else
+    echo "WARNING: nextdns not found. Install via: brew install nextdns"
+fi
 
 # =============================================================================
 # Step 9: Search Engine Defaults

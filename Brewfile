@@ -48,9 +48,10 @@ brew "mysql-client"
 brew "mysql@8.0"
 brew "uwsgi"
 
-# Security
+# Security & Privacy
 brew "ggshield"
 brew "gpg-suite"
+brew "nextdns"
 
 # Cloud
 brew "aws/tap/lightsailctl"
