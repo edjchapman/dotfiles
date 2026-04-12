@@ -87,6 +87,18 @@ fi
 # =============================================================================
 
 # =============================================================================
+# VPN — NordVPN (GUI-only, settings must be configured manually)
+# Recommended settings:
+#   - Kill Switch: Enabled
+#   - Protocol: NordLynx (WireGuard-based)
+#   - Auto-connect: On startup / on untrusted Wi-Fi
+#   - Threat Protection: Enabled
+#   - DNS: Default (NordVPN DNS when VPN active, NextDNS when VPN off)
+#   - Analytics/crash reports: Disabled
+# DNS coexistence: NordVPN handles DNS when active, NextDNS handles when off
+# =============================================================================
+
+# =============================================================================
 # Search Engine Defaults
 # =============================================================================
 # (To be configured in Step 9)
