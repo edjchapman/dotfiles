@@ -99,9 +99,20 @@ fi
 # =============================================================================
 
 # =============================================================================
-# Search Engine Defaults
+# Search Engine — DuckDuckGo as default
 # =============================================================================
-# (To be configured in Step 9)
+
+# Set DuckDuckGo as default search in Safari (for when Safari is used)
+defaults write com.apple.Safari SearchProviderShortName -string "DuckDuckGo"
+
+# Brave and Firefox search engines must be set in-app:
+#   Brave:   Settings > Search engine > DuckDuckGo
+#   Firefox: Settings > Search > Default Search Engine > DuckDuckGo
+
+# =============================================================================
+# Password Manager — Dashlane (browser extension + web app, no brew cask)
+# Install Dashlane extension in Brave and Firefox manually
+# =============================================================================
 
 echo ""
 echo "macOS defaults applied."
