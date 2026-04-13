@@ -24,7 +24,6 @@ This automatically:
 This requires your password and:
 - Enables macOS firewall + stealth mode
 - Disables remote Apple events
-- Installs and activates NextDNS (encrypted DNS, config `REDACTED`)
 
 ### Step 3: Configure apps (manual, in-app only)
 
@@ -55,10 +54,6 @@ These settings can't be automated:
 - Grant Network Extension permission in System Settings > Privacy & Security
 - Review connection alerts as they appear
 
-**NextDNS**
-- Manage blocklists at https://my.nextdns.io/REDACTED/setup
-- Recommended: enable OISD + NextDNS Ads & Trackers blocklists
-
 **Mac App Store** (not automatable via Homebrew)
 - Install Amphetamine
 
@@ -68,22 +63,14 @@ These settings can't be automated:
 |-------|------|--------------|
 | Packages | Homebrew `Brewfile` | All CLI tools, desktop apps, VS Code extensions |
 | macOS defaults | `run_onchange_03-macos-defaults.sh` | Telemetry, ads, Spotlight, Siri, screen lock, AirDrop |
-| Firewall + DNS | `~/.config/chezmoi/scripts/macos-sudo.sh` | Firewall, stealth mode, NextDNS activation |
+| Firewall (sudo) | `~/.config/chezmoi/scripts/macos-sudo.sh` | Firewall + stealth mode |
 | Firewall (outbound) | LuLu | Monitors/blocks apps phoning home |
 | VPN | NordVPN | Encrypted tunnel with kill switch |
-| DNS (when VPN off) | NextDNS (config `REDACTED`) | Encrypted DNS + ad/tracker blocking |
 | Browser | Brave (default) | Strict shields, fingerprint blocking |
 | Browser | Firefox | Work/logged-in sessions |
 | Browser | Tor | Sensitive/anonymous browsing |
 | Search | DuckDuckGo | Default across all browsers |
 | Passwords | Dashlane | Browser extension (install manually) |
-
-## DNS + VPN Coexistence
-
-- **VPN on:** NordVPN handles DNS (encrypted within tunnel)
-- **VPN off:** NextDNS handles DNS (encrypted DoH with ad/tracker blocking)
-
-Both are no-log. No configuration conflict — they take turns.
 
 ## Ongoing Practices
 

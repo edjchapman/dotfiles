@@ -49,7 +49,6 @@ brew "uwsgi"
 
 # Security & Privacy
 brew "ggshield"
-brew "nextdns"
 
 # Cloud
 brew "aws/tap/lightsailctl"
@@ -74,6 +73,7 @@ cask "windsurf"
 
 # Desktop Apps — Productivity
 cask "alfred"
+cask "google-drive"
 cask "notion"
 cask "obsidian"
 cask "slack"

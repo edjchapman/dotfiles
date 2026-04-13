@@ -16,15 +16,5 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
 # Disable remote Apple events
 sudo systemsetup -setremoteappleevents off 2>/dev/null || true
 
-# NextDNS — encrypted DNS with ad/tracker blocking
-# Config ID: REDACTED — manage blocklists at https://my.nextdns.io/REDACTED/setup
-if command -v nextdns &>/dev/null; then
-    sudo nextdns install -config REDACTED -report-client-info -auto-activate
-    sudo nextdns activate
-    echo "NextDNS configured and activated."
-else
-    echo "WARNING: nextdns not found. Install via: brew install nextdns"
-fi
-
 echo ""
-echo "Done. Firewall, stealth mode, and NextDNS are active."
+echo "Done. Firewall and stealth mode are active."
