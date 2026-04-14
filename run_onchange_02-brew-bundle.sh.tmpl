@@ -14,7 +14,7 @@ fi
 
 if command -v brew &>/dev/null; then
     echo "Running brew bundle..."
-    brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" --no-lock
+    brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile"
 else
     echo "ERROR: Homebrew not found. Run setup step 01 first."
     exit 1
