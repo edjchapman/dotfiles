@@ -6,7 +6,10 @@ set -euo pipefail
 
 if ! command -v brew &>/dev/null; then
     echo "Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if ! /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+        echo "ERROR: Homebrew installation failed."
+        exit 1
+    fi
 
     # Add to PATH for Apple Silicon
     if [[ $(uname -m) == "arm64" ]]; then

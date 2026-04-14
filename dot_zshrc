@@ -3,7 +3,6 @@ export ZSH=~/.oh-my-zsh
 
 export DEFAULT_USER=$USER
 
-# Set the name of the theme to load. Optionally, if you set this to "random"
 export ZSH_THEME="agnoster"
 
 # Command auto-correction.
@@ -22,7 +21,6 @@ export plugins=(
 source $ZSH/oh-my-zsh.sh
 
 eval $(thefuck --alias)
-export DYLD_LIBRARY_PATH=/usr/local/opt/openssl/lib:$DYLD_LIBRARY_PATH
 
 # Set CLICOLOR if you want Ansi Colors in iTerm2
 export CLICOLOR=1
@@ -32,65 +30,54 @@ export TERM=xterm-256color
 
 # PATH
 export PATH="/usr/local/sbin:$HOME/bin:/usr/local/bin:$PATH"
+export PATH="$PATH:$HOME/.local/bin"
 
-# Created by `pipx` on 2023-07-05 18:12:07
-export PATH="$PATH:/Users/ed/.local/bin"
-
-# Add this near the top of ~/.zshrc, before compinit
+# Completions (homebrew + custom)
 fpath=(~/.zfunc $fpath)
-
-autoload -U compinit
-compinit
-
-## ZSH Homebrew Completions
 if type brew &>/dev/null; then
     FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-    autoload -Uz compinit
-    compinit
 fi
+autoload -Uz compinit
+compinit
 
-## Test ZSH Iterm2 Shell Integration
+# iTerm2 shell integration (installed on first launch of iTerm2)
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
 
+# NVM (Node Version Manager) — install via: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-export PATH="/opt/homebrew/opt/mysql-client@8.4/bin:$PATH"
-export PATH="/opt/homebrew/opt/mysql/bin:$PATH"
+# MySQL — paths for mysql@8.0 (installed via Brewfile)
+export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
+export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.0/include"
 
 # Machine-specific secrets and credentials (AWS, GitHub, Jira, etc.)
 # Create ~/.zshrc.local manually on each machine — not tracked by chezmoi
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
-# Added by Windsurf
-export PATH="/Users/ed/.codeium/windsurf/bin:$PATH"
-
-# These flags are needed so uv's PEP 517 builder can find the MySQL headers
-export LDFLAGS="-L/opt/homebrew/opt/mysql/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/mysql/include"
-export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
+# Windsurf
+export PATH="$HOME/.codeium/windsurf/bin:$PATH"
 
 # Sync with origin and safely clean up stale branches
 hub-sync-clean() {
-  echo "🔄 Syncing with origin..."
+  echo "Syncing with origin..."
   hub sync
   git fetch --prune
 
-  echo "🧹 Checking for branches whose remote no longer exists..."
+  echo "Checking for branches whose remote no longer exists..."
   local -a gone_branches
   gone_branches=("${(@f)$(git branch -vv | awk '/: gone]/{print $1}')}")
 
   if [[ ${#gone_branches[@]} -eq 0 || -z "${gone_branches[1]}" ]]; then
-    echo "✅ No stale branches to remove."
+    echo "No stale branches to remove."
     return
   fi
 
-  # Get merged branches once
   local merged
   merged=$(git branch --merged main)
 
-  # Separate into merged and unmerged
   local -a merged_gone unmerged_gone
   for branch in "${gone_branches[@]}"; do
     if echo "$merged" | grep -qE "^[* ] ${branch}$"; then
@@ -100,49 +87,45 @@ hub-sync-clean() {
     fi
   done
 
-  # Handle merged branches first (safe to delete)
   if [[ ${#merged_gone[@]} -gt 0 ]]; then
-    echo "✅ Merged branches (safe to delete):"
+    echo "Merged branches (safe to delete):"
     for branch in "${merged_gone[@]}"; do
       echo "  - $branch"
     done
     echo
-    read "reply?🗑️  Delete these ${#merged_gone[@]} merged branches? [y/N] "
+    read "reply?Delete these ${#merged_gone[@]} merged branches? [y/N] "
     if [[ $reply =~ ^[Yy]$ ]]; then
       for branch in "${merged_gone[@]}"; do
         git branch -d "$branch"
       done
-      echo "✅ Merged branches deleted."
+      echo "Merged branches deleted."
     fi
   fi
 
-  # Handle unmerged branches (requires force delete)
   if [[ ${#unmerged_gone[@]} -gt 0 ]]; then
     echo
-    echo "⚠️  Unmerged branches (remote deleted, local changes may be lost):"
+    echo "WARNING: Unmerged branches (remote deleted, local changes may be lost):"
     for branch in "${unmerged_gone[@]}"; do
       echo "  - $branch"
     done
     echo
-    read "reply?🔥 Force delete these ${#unmerged_gone[@]} unmerged branches? [y/N] "
+    read "reply?Force delete these ${#unmerged_gone[@]} unmerged branches? [y/N] "
     if [[ $reply =~ ^[Yy]$ ]]; then
       for branch in "${unmerged_gone[@]}"; do
         git branch -D "$branch"
       done
-      echo "✅ Unmerged branches force-deleted."
+      echo "Unmerged branches force-deleted."
     else
-      echo "❎ Unmerged branches kept."
+      echo "Unmerged branches kept."
     fi
   fi
 
-  echo "✅ Clean-up complete."
+  echo "Clean-up complete."
 }
 
 # CLAUDE
-export DISABLE_AUTOUPDATER=1  # Using homebrew version, so disable Claude auto-checks
-export ENABLE_TOOL_SEARCH=auto:5 # Derive relevant plugins from prompt to keep context in check
-alias claude-setup='~/Development/claude-code-config/scripts/setup-project.sh'
-
+export DISABLE_AUTOUPDATER=1
+export ENABLE_TOOL_SEARCH=auto:5
 
 # Suppress Homebrew informational hints while keeping automatic updates enabled
 export HOMEBREW_NO_ENV_HINTS=1
@@ -176,5 +159,6 @@ mkdir -p "$HOME/.cache"
 if [[ ! -f "$BREWUP_STAMP" || "$(date +%F)" != "$(cat "$BREWUP_STAMP" 2>/dev/null)" ]]; then
   brewup && date +%F >| "$BREWUP_STAMP"
 fi
-export PATH="$HOME/.cargo/bin:$PATH"
 
+# Rust
+export PATH="$HOME/.cargo/bin:$PATH"
