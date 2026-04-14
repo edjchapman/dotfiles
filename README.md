@@ -1,6 +1,6 @@
 # Dotfiles — Privacy-Hardened Mac Setup
 
-Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a privacy-hardened macOS environment from scratch.
+Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a fully configured, privacy-hardened macOS environment from scratch.
 
 ## New Machine Setup
 
@@ -12,14 +12,13 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply edjchapman
 
 This automatically:
 - Installs oh-my-zsh
-- Installs Homebrew (if missing)
-- Installs all packages from `Brewfile` (browsers, dev tools, privacy tools, etc.)
-- Deploys shell config (`.zshrc`, `.zprofile`, `.zshenv`), git config, and global gitignore
-- Applies macOS privacy defaults (telemetry, ads, Spotlight, AirDrop, screen lock)
+- Installs Homebrew and all packages from `Brewfile`
+- Installs Mac App Store apps (Amphetamine) via `mas`
+- Deploys shell config (`.zshrc`, `.zprofile`, `.zshenv`), git config, global gitignore
+- Configures macOS: Dock (auto-hide, layout), Finder (list view, hidden files), keyboard (fast repeat, no autocorrect), trackpad (tap to click), screenshots (~/Downloads, no shadow), privacy settings, menu bar clock
+- Sets up iTerm2 to load preferences from `~/.config/iterm2/`
 
 ### Step 2: Create secrets file
-
-Create `~/.zshrc.local` with your credentials (not tracked by chezmoi):
 
 ```bash
 cat > ~/.zshrc.local << 'EOF'
@@ -41,116 +40,121 @@ EOF
 
 This enables:
 - macOS firewall + stealth mode
+- Touch ID for sudo
+- Energy settings (display sleep, Power Nap off)
 - Disables remote Apple events
 
 ### Step 4: Configure apps (manual, in-app only)
 
 **Brave Browser** (set as default via System Settings > Default Browser)
-- Settings > Shields > Trackers & ads: **Aggressive**
-- Settings > Shields > Fingerprinting: **Strict**
-- Settings > Shields > Upgrade connections to HTTPS
-- Settings > Search engine: **DuckDuckGo**
-- Settings > Privacy > Clear browsing data on exit: **enabled**
+- Shields > Trackers & ads: **Aggressive**
+- Shields > Fingerprinting: **Strict**
+- Shields > Upgrade connections to HTTPS
+- Search engine: **DuckDuckGo**
+- Privacy > Clear browsing data on exit: **enabled**
 - Install Dashlane extension
 
 **Firefox**
-- Settings > Search > Default: **DuckDuckGo**
+- Search > Default: **DuckDuckGo**
 - Install Dashlane extension
-- Install Multi-Account Containers extension (optional)
 
 **NordVPN**
 - Kill Switch: **Enabled**
 - Protocol: **NordLynx**
 - Auto-connect: **On startup / untrusted Wi-Fi**
 - Threat Protection: **Enabled**
-- Analytics/crash reports: **Disabled**
+- Analytics: **Disabled**
 
-**LuLu** (outbound firewall)
-- Launch and approve System Extension
-- Grant Network Extension permission in System Settings > Privacy & Security
+**LuLu** — Launch, approve System Extension, grant Network Extension permission
 
-**ProtonMail**
-- Sign in or create account
-- Use for new signups and sensitive communications
-- Consider Proton's built-in email aliases for service signups
+**ProtonMail** — Sign in or create account
 
-**Mac App Store** (not automatable via Homebrew)
-- Install Amphetamine
+**iTerm2** — Launch once to populate `~/.config/iterm2/` with preferences
 
 ### Step 5: SSH keys
 
-SSH config is synced via Google Drive (`~/.ssh` symlink). On a new machine, set up Google Drive first, then symlink:
+SSH is synced via Google Drive. Set up Google Drive first, then:
 
 ```bash
 ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 ```
 
-## What's In the Box
+## What's Automated
 
-| Layer | What | Config |
-|-------|------|--------|
-| Shell | oh-my-zsh + zsh with plugins | `.zshrc`, `.zprofile`, `.zshenv` |
-| Secrets | Machine-specific credentials | `~/.zshrc.local` (manual, not tracked) |
-| Git | User, pull rebase, push auto-remote | `.gitconfig`, `.config/git/ignore` |
-| Packages | Homebrew CLI tools, desktop apps, VS Code extensions | `Brewfile` |
-| macOS defaults | Telemetry, ads, Spotlight, Siri, screen lock, AirDrop | `run_onchange_03-macos-defaults.sh` |
-| Firewall (sudo) | macOS firewall + stealth mode | `~/.config/chezmoi/scripts/macos-sudo.sh` |
-| Firewall (outbound) | LuLu — monitors/blocks apps phoning home | Installed via Brewfile |
-| VPN | NordVPN with kill switch | Installed via Brewfile |
-| Browser | Brave (default), Firefox (work), Tor (sensitive) | Installed via Brewfile |
-| Search | DuckDuckGo across all browsers | Set in macOS defaults + in-app |
-| Email | ProtonMail for sensitive, Gmail for non-sensitive | Installed via Brewfile |
-| Passwords | Dashlane | Browser extension (install manually) |
+| Category | What | Config file |
+|----------|------|-------------|
+| **Shell** | oh-my-zsh, plugins, aliases, functions | `.zshrc`, `.zprofile`, `.zshenv` |
+| **Git** | User, pull rebase, push auto-remote, gh credentials | `.gitconfig`, `.config/git/ignore` |
+| **Packages** | CLI tools, desktop apps, VS Code extensions, App Store | `Brewfile` |
+| **Dock** | Auto-hide, icon size, no recents, fixed spaces, layout | `run_onchange_03`, `run_once_05` |
+| **Finder** | Hidden files, extensions, path bar, list view | `run_onchange_03` |
+| **Keyboard** | Fast repeat, no autocorrect/smart quotes/auto-caps | `run_onchange_03` |
+| **Trackpad** | Tap to click | `run_onchange_03` |
+| **Screenshots** | ~/Downloads, PNG, no shadow | `run_onchange_03` |
+| **Clock** | Day, date, time in menu bar | `run_onchange_03` |
+| **Privacy** | Telemetry, ads, Spotlight, Siri, AirDrop, screen lock | `run_onchange_03` |
+| **Search** | DuckDuckGo default | `run_onchange_03` |
+| **iTerm2** | Preferences from `~/.config/iterm2/` | `run_onchange_03` |
+| **Firewall** | Inbound (macOS) + outbound (LuLu) | `macos-sudo.sh` + Brewfile |
+| **Touch ID sudo** | Fingerprint for sudo commands | `macos-sudo.sh` |
+| **Energy** | Display sleep, system sleep, Power Nap off | `macos-sudo.sh` |
+| **VPN** | NordVPN | Brewfile (configure in-app) |
+| **Email** | ProtonMail | Brewfile (configure in-app) |
+| **Passwords** | Dashlane | Browser extension (manual) |
+
+## Customizing the Dock
+
+The Dock layout is set once by `run_once_05-dock-layout.sh`. To change it:
+
+```bash
+chezmoi cd
+# Edit run_once_05-dock-layout.sh with your preferred apps
+# Then force re-run:
+chezmoi state delete-bucket --bucket=scriptState
+chezmoi apply
+```
 
 ## 2FA Checklist
 
-Enable two-factor authentication on all critical accounts. Prefer TOTP or hardware keys over SMS.
-
-**Priority accounts (do these first):**
+**Priority accounts:**
 - [ ] Email (Gmail, ProtonMail)
 - [ ] GitHub
-- [ ] Cloud providers (AWS, GCP, Azure)
-- [ ] Banking and financial services
+- [ ] Cloud providers (AWS)
+- [ ] Banking
 - [ ] Password manager (Dashlane)
 - [ ] Domain registrar
 
-**Recommended 2FA method (best to worst):**
-1. Hardware security key (YubiKey) — phishing-resistant
-2. TOTP app (Ente Auth, Authy, or Dashlane's built-in TOTP)
-3. Push notification (app-specific, e.g., GitHub Mobile)
-4. SMS — avoid if possible (SIM swap attacks)
+**Method (best to worst):** Hardware key > TOTP app > Push > SMS
 
-**Action items:**
-- [ ] Audit all accounts at https://2fa.directory for 2FA support
-- [ ] Move any SMS-based 2FA to TOTP
-- [ ] Store 2FA recovery codes in Dashlane secure notes
-- [ ] Consider a YubiKey for GitHub and email accounts
+**Actions:**
+- [ ] Audit accounts at https://2fa.directory
+- [ ] Move SMS-based 2FA to TOTP
+- [ ] Store recovery codes in Dashlane
 
 ## Email Strategy
 
-- **ProtonMail** — Use for new signups, sensitive communications, and anything you want encrypted
-- **Gmail** — Keep for existing accounts and non-sensitive use
-- **Email aliases** — Use Proton's built-in aliases (or SimpleLogin) when signing up for services. Each service gets a unique alias so you can trace and revoke if compromised
+- **ProtonMail** — New signups, sensitive communications
+- **Gmail** — Existing accounts, non-sensitive use
+- **Email aliases** — Proton aliases or SimpleLogin for service signups
 
 ## Ongoing Practices
 
-- [ ] Use Brave for daily browsing, Firefox for work/logged-in sessions, Tor for sensitive browsing
-- [ ] Use DuckDuckGo for search across all browsers
-- [ ] Use browser web versions instead of desktop apps where possible (Google Docs, Zoom, etc.)
-- [ ] Review LuLu connection alerts — block apps that shouldn't phone home
-- [ ] Review app permissions quarterly (System Settings > Privacy & Security)
-- [ ] Use Dashlane with unique passwords per service
-- [ ] Enable 2FA everywhere (see checklist above)
-- [ ] Use Signal for sensitive messaging (over WhatsApp)
-- [ ] Use ProtonMail for sensitive email (over Gmail)
-- [ ] Use email aliases for new service signups
+- [ ] Brave for daily browsing, Firefox for work, Tor for sensitive
+- [ ] DuckDuckGo for search everywhere
+- [ ] Web versions over desktop apps (Google Docs, Zoom)
+- [ ] Review LuLu alerts — block unnecessary outbound connections
+- [ ] Review app permissions quarterly
+- [ ] Dashlane with unique passwords per service
+- [ ] 2FA everywhere (TOTP or hardware key)
+- [ ] Signal for sensitive messaging
+- [ ] ProtonMail for sensitive email
+- [ ] Email aliases for new signups
 
 ## Updating
 
-Edit files in `~/.local/share/chezmoi/` then:
-
 ```bash
-chezmoi apply    # deploys changes (re-runs brew bundle if Brewfile changed)
-chezmoi cd       # shortcut to open the source directory
-cd ~/.local/share/chezmoi && git add -A && git commit -m "update" && git push
+chezmoi cd                    # open source directory
+# edit files...
+chezmoi apply                 # deploy changes
+git add -A && git commit -m "update" && git push
 ```

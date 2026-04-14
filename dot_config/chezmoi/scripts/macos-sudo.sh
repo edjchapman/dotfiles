@@ -1,20 +1,51 @@
 #!/bin/bash
-# macOS Privacy & Security — commands requiring sudo
+# macOS Settings — commands requiring sudo
 # Run manually after chezmoi apply: ~/.config/chezmoi/scripts/macos-sudo.sh
-#
-# These are NOT run automatically because sudo prompts break
-# non-interactive chezmoi apply.
 
 set -euo pipefail
 
 echo "Applying macOS sudo settings (will prompt for password)..."
 
+# =============================================================================
 # Firewall
+# =============================================================================
+
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
 
 # Disable remote Apple events
 sudo systemsetup -setremoteappleevents off 2>/dev/null || true
 
+# =============================================================================
+# Touch ID for sudo
+# =============================================================================
+
+# Use pam_tid.so via sudo_local (survives macOS updates)
+if [[ ! -f /etc/pam.d/sudo_local ]]; then
+    if [[ -f /etc/pam.d/sudo_local.template ]]; then
+        sudo cp /etc/pam.d/sudo_local.template /etc/pam.d/sudo_local
+        sudo sed -i '' 's/^#auth       sufficient     pam_tid.so/auth       sufficient     pam_tid.so/' /etc/pam.d/sudo_local
+        echo "Touch ID for sudo: enabled."
+    else
+        echo "Touch ID for sudo: template not found, skipping."
+    fi
+else
+    echo "Touch ID for sudo: already configured."
+fi
+
+# =============================================================================
+# Energy Settings
+# =============================================================================
+
+# Display sleep: 10 minutes
+sudo pmset -a displaysleep 10
+
+# System sleep: 30 minutes on battery, never on AC
+sudo pmset -b sleep 30
+sudo pmset -c sleep 0
+
+# Disable Power Nap (background syncing while sleeping)
+sudo pmset -a powernap 0
+
 echo ""
-echo "Done. Firewall and stealth mode are active."
+echo "Done. Firewall, stealth mode, Touch ID sudo, and energy settings active."

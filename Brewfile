@@ -8,11 +8,13 @@ tap "aws/tap"
 # CLI Tools
 brew "bash"
 brew "chezmoi"
+brew "dockutil"
 brew "gh"
 brew "git"
 brew "go"
 brew "grep"
 brew "n"
+brew "mas"
 brew "nmap"
 brew "pandoc"
 brew "pipx"
@@ -107,8 +109,8 @@ cask "sparrow"
 # Desktop Apps — Other
 cask "algoapp"
 
-# Mac App Store (install manually)
-# - Amphetamine (keeps Mac awake)
+# Mac App Store (requires signed-in Apple ID)
+mas "Amphetamine", id: 937984704
 
 # VS Code Extensions
 vscode "ahmadalli.vscode-nginx-conf"
