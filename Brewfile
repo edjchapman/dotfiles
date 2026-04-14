@@ -88,6 +88,7 @@ cask "raspberry-pi-imager"
 cask "gpg-suite"
 cask "lulu"
 cask "nordvpn"
+cask "proton-mail"
 
 # Desktop Apps — AI
 cask "chatgpt"
