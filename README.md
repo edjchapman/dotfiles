@@ -4,33 +4,28 @@ Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a fully configured, 
 
 ## New Machine Setup
 
-### Step 1: Run chezmoi (automated)
+### Step 1: Transfer age key
+
+Copy `~/.config/chezmoi/key.txt` from your existing machine. This single file unlocks all encrypted secrets in the repo.
+
+### Step 2: Run chezmoi (automated)
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply edjchapman
 ```
 
+You'll be prompted for:
+- **Machine type** (personal / work)
+- **GPG signing key ID** (leave empty to skip commit signing)
+
 This automatically:
-- Installs oh-my-zsh
-- Installs Homebrew and all packages from `Brewfile`
+- Installs oh-my-zsh, Homebrew, and all packages
 - Installs Mac App Store apps (Amphetamine) via `mas`
-- Deploys shell config (`.zshrc`, `.zprofile`, `.zshenv`), git config, global gitignore
-- Configures macOS: Dock (auto-hide, layout), Finder (list view, hidden files), keyboard (fast repeat, no autocorrect), trackpad (tap to click), screenshots (~/Downloads, no shadow), privacy settings, menu bar clock
+- Deploys shell config, git config (with GPG signing if key provided), global gitignore
+- Decrypts and deploys `~/.zshrc.local` (secrets — AWS, GitHub, Jira credentials)
+- Configures macOS: Dock, Finder, keyboard, trackpad, screenshots, privacy, clock
+- Sets up global ggshield pre-commit hook (secret scanning on every commit)
 - Sets up iTerm2 to load preferences from `~/.config/iterm2/`
-
-### Step 2: Create secrets file
-
-```bash
-cat > ~/.zshrc.local << 'EOF'
-# Machine-specific secrets — not tracked by chezmoi or git
-export AWS_ACCOUNT_ID="..."
-export AWS_REGION="..."
-export ECR_REPO="..."
-export GITHUB_PERSONAL_ACCESS_TOKEN="..."
-export JIRA_USERNAME="..."
-export JIRA_API_TOKEN="..."
-EOF
-```
 
 ### Step 3: Run sudo script (requires password)
 
@@ -40,40 +35,44 @@ EOF
 
 This enables:
 - macOS firewall + stealth mode
-- Touch ID for sudo
-- Energy settings (display sleep, Power Nap off)
+- Touch ID for sudo (survives macOS updates)
+- Energy settings (display sleep 10m, Power Nap off)
+- Automatic software updates enforced
 - Disables remote Apple events
 
-### Step 4: Configure apps (manual, in-app only)
+### Step 4: GPG key setup (if signing commits)
+
+```bash
+# Generate a new GPG key
+gpg --quick-gen-key "Ed Chapman <edchapman88@gmail.com>" ed25519 sign 0
+
+# Upload to GitHub
+gh auth refresh -s write:gpg_key
+gpg --armor --export <KEY_ID> | gh gpg-key add -
+```
+
+Then re-run `chezmoi init` to set the signing key ID.
+
+### Step 5: Configure apps (manual, in-app only)
 
 **Brave Browser** (set as default via System Settings > Default Browser)
-- Shields > Trackers & ads: **Aggressive**
-- Shields > Fingerprinting: **Strict**
-- Shields > Upgrade connections to HTTPS
-- Search engine: **DuckDuckGo**
-- Privacy > Clear browsing data on exit: **enabled**
+- Shields: Aggressive trackers, Strict fingerprinting, HTTPS-only
+- Search: DuckDuckGo
 - Install Dashlane extension
 
-**Firefox**
-- Search > Default: **DuckDuckGo**
-- Install Dashlane extension
+**Firefox** — DuckDuckGo search, Dashlane extension
 
-**NordVPN**
-- Kill Switch: **Enabled**
-- Protocol: **NordLynx**
-- Auto-connect: **On startup / untrusted Wi-Fi**
-- Threat Protection: **Enabled**
-- Analytics: **Disabled**
+**NordVPN** — Kill Switch on, NordLynx, Auto-connect, Threat Protection on, Analytics off
 
-**LuLu** — Launch, approve System Extension, grant Network Extension permission
+**LuLu** — Launch, approve System Extension and Network Extension
 
 **ProtonMail** — Sign in or create account
 
-**iTerm2** — Launch once to populate `~/.config/iterm2/` with preferences
+**iTerm2** — Launch once to populate `~/.config/iterm2/`
 
-### Step 5: SSH keys
+### Step 6: SSH keys
 
-SSH is synced via Google Drive. Set up Google Drive first, then:
+SSH is synced via Google Drive:
 
 ```bash
 ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
@@ -81,12 +80,14 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 
 ## What's Automated
 
-| Category | What | Config file |
-|----------|------|-------------|
+| Category | What | Config |
+|----------|------|--------|
 | **Shell** | oh-my-zsh, plugins, aliases, functions | `.zshrc`, `.zprofile`, `.zshenv` |
-| **Git** | User, pull rebase, push auto-remote, gh credentials | `.gitconfig`, `.config/git/ignore` |
+| **Secrets** | AWS, GitHub PAT, Jira credentials (age-encrypted) | `encrypted_dot_zshrc.local.age` |
+| **Git** | User, pull rebase, GPG signing, global hooks | `.gitconfig` (template) |
+| **Secret scanning** | ggshield pre-commit on all repos | `.config/git/hooks/pre-commit` |
 | **Packages** | CLI tools, desktop apps, VS Code extensions, App Store | `Brewfile` |
-| **Dock** | Auto-hide, icon size, no recents, fixed spaces, layout | `run_onchange_03`, `run_once_05` |
+| **Dock** | Auto-hide, size, no recents, fixed spaces, layout | `run_onchange_03`, `run_once_05` |
 | **Finder** | Hidden files, extensions, path bar, list view | `run_onchange_03` |
 | **Keyboard** | Fast repeat, no autocorrect/smart quotes/auto-caps | `run_onchange_03` |
 | **Trackpad** | Tap to click | `run_onchange_03` |
@@ -94,61 +95,58 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 | **Clock** | Day, date, time in menu bar | `run_onchange_03` |
 | **Privacy** | Telemetry, ads, Spotlight, Siri, AirDrop, screen lock | `run_onchange_03` |
 | **Search** | DuckDuckGo default | `run_onchange_03` |
-| **iTerm2** | Preferences from `~/.config/iterm2/` | `run_onchange_03` |
+| **iTerm2** | Prefs from `~/.config/iterm2/` | `run_onchange_03` |
 | **Firewall** | Inbound (macOS) + outbound (LuLu) | `macos-sudo.sh` + Brewfile |
-| **Touch ID sudo** | Fingerprint for sudo commands | `macos-sudo.sh` |
+| **Touch ID sudo** | Fingerprint for sudo | `macos-sudo.sh` |
 | **Energy** | Display sleep, system sleep, Power Nap off | `macos-sudo.sh` |
+| **Auto-updates** | macOS + critical updates enforced | `macos-sudo.sh` |
 | **VPN** | NordVPN | Brewfile (configure in-app) |
 | **Email** | ProtonMail | Brewfile (configure in-app) |
 | **Passwords** | Dashlane | Browser extension (manual) |
 
-## Customizing the Dock
+## Encryption
 
-The Dock layout is set once by `run_once_05-dock-layout.sh`. To change it:
+Secrets are encrypted with [age](https://age-encryption.org/) and stored in the repo as `.age` files. They decrypt automatically during `chezmoi apply` using the key at `~/.config/chezmoi/key.txt`.
+
+**To transfer secrets to a new machine:** Copy `key.txt` before running `chezmoi init --apply`. This is the only file you need to transfer manually — everything else comes from the repo.
+
+**To update secrets:** Edit `~/.zshrc.local` directly, then run `chezmoi add --encrypt ~/.zshrc.local` to re-encrypt.
+
+## Lockdown Mode
+
+For high-risk situations (travel, hostile networks), macOS offers [Lockdown Mode](https://support.apple.com/en-us/105120):
+- System Settings > Privacy & Security > Lockdown Mode
+- Blocks most message attachment types, FaceTime from unknown callers, some web technologies, wired connections when locked
+- **Not for daily use** — breaks some functionality. Enable situationally.
+
+## Verification
+
+After setup, run:
+
+```bash
+chezmoi doctor         # all checks should pass
+git log --show-signature -1  # verify GPG signing (if configured)
+```
+
+## Customizing the Dock
 
 ```bash
 chezmoi cd
-# Edit run_once_05-dock-layout.sh with your preferred apps
-# Then force re-run:
+# Edit run_once_05-dock-layout.sh
 chezmoi state delete-bucket --bucket=scriptState
 chezmoi apply
 ```
 
 ## 2FA Checklist
 
-**Priority accounts:**
-- [ ] Email (Gmail, ProtonMail)
-- [ ] GitHub
-- [ ] Cloud providers (AWS)
-- [ ] Banking
-- [ ] Password manager (Dashlane)
-- [ ] Domain registrar
+**Priority:** Email, GitHub, AWS, banking, Dashlane, domain registrar
 
-**Method (best to worst):** Hardware key > TOTP app > Push > SMS
+**Method (best to worst):** Hardware key > TOTP > Push > SMS
 
 **Actions:**
-- [ ] Audit accounts at https://2fa.directory
+- [ ] Audit at https://2fa.directory
 - [ ] Move SMS-based 2FA to TOTP
 - [ ] Store recovery codes in Dashlane
-
-## Email Strategy
-
-- **ProtonMail** — New signups, sensitive communications
-- **Gmail** — Existing accounts, non-sensitive use
-- **Email aliases** — Proton aliases or SimpleLogin for service signups
-
-## Ongoing Practices
-
-- [ ] Brave for daily browsing, Firefox for work, Tor for sensitive
-- [ ] DuckDuckGo for search everywhere
-- [ ] Web versions over desktop apps (Google Docs, Zoom)
-- [ ] Review LuLu alerts — block unnecessary outbound connections
-- [ ] Review app permissions quarterly
-- [ ] Dashlane with unique passwords per service
-- [ ] 2FA everywhere (TOTP or hardware key)
-- [ ] Signal for sensitive messaging
-- [ ] ProtonMail for sensitive email
-- [ ] Email aliases for new signups
 
 ## Updating
 

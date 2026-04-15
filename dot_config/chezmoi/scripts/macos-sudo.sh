@@ -47,5 +47,14 @@ sudo pmset -c sleep 0
 # Disable Power Nap (background syncing while sleeping)
 sudo pmset -a powernap 0
 
+# =============================================================================
+# Software Updates — ensure automatic updates are enabled
+# =============================================================================
+
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
+
 echo ""
-echo "Done. Firewall, stealth mode, Touch ID sudo, and energy settings active."
+echo "Done. Firewall, stealth mode, Touch ID sudo, energy, and auto-updates active."

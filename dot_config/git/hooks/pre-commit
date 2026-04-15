@@ -1,0 +1,20 @@
+#!/bin/bash
+# Global pre-commit hook — scans for secrets before every commit
+# Managed by chezmoi, deployed to ~/.config/git/hooks/
+
+# Run ggshield if available
+if command -v ggshield &>/dev/null; then
+    ggshield secret scan pre-commit "$@"
+    exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        echo ""
+        echo "ggshield detected secrets in your commit. Fix them before committing."
+        echo "To skip this check (not recommended): git commit --no-verify"
+        exit $exit_code
+    fi
+fi
+
+# Run project-local pre-commit hooks if they exist
+if [ -f .pre-commit-config.yaml ] && command -v pre-commit &>/dev/null; then
+    pre-commit run --hook-stage pre-commit "$@"
+fi

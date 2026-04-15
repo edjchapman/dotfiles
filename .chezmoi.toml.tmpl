@@ -1,2 +1,12 @@
-# chezmoi configuration
-# No interactive prompts — keeps `chezmoi init --apply` smooth
+{{- $machineType := promptChoiceOnce . "machine_type" "Machine type" (list "personal" "work") -}}
+{{- $gpgKey := promptStringOnce . "gpg_signing_key" "GPG signing key ID (leave empty to skip)" -}}
+
+encryption = "age"
+
+[age]
+    identity = "~/.config/chezmoi/key.txt"
+    recipient = "age1wz9leqr8xhq2fjmseafudld779sz93yv2w3hgzalc0ku5xp0rqds9m4aue"
+
+[data]
+    machine_type = {{ $machineType | quote }}
+    gpg_signing_key = {{ $gpgKey | quote }}

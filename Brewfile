@@ -18,6 +18,7 @@ brew "mas"
 brew "nmap"
 brew "pandoc"
 brew "pipx"
+brew "pre-commit"
 brew "python@3.11"
 brew "redis"
 brew "ruby"
@@ -50,6 +51,7 @@ brew "mysql@8.0"
 brew "uwsgi"
 
 # Security & Privacy
+brew "age"
 brew "ggshield"
 
 # Cloud

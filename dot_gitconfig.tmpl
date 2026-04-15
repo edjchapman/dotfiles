@@ -1,6 +1,9 @@
 [user]
 	name = Ed Chapman
 	email = edchapman88@gmail.com
+{{- if .gpg_signing_key }}
+	signingkey = {{ .gpg_signing_key }}
+{{- end }}
 [pull]
 	rebase = true
 [push]
@@ -12,9 +15,16 @@
 [core]
 	ignorecase = false
 	autocrlf = input
+	hooksPath = ~/.config/git/hooks
+{{- if .gpg_signing_key }}
+[commit]
+	gpgsign = true
+[gpg]
+	program = /usr/local/bin/gpg
+{{- end }}
 [credential "https://github.com"]
-	helper = 
+	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = 
+	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
