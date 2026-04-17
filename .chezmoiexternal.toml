@@ -4,3 +4,10 @@
     exact = true
     stripComponents = 1
     refreshPeriod = "168h"
+
+[".config/claude-code-config"]
+    type = "git-repo"
+    url = "https://github.com/edjchapman/claude-code-config.git"
+    refreshPeriod = "168h"
+    [".config/claude-code-config".pull]
+        rebase = true

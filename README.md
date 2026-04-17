@@ -15,17 +15,20 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply edjchapman
 ```
 
 You'll be prompted for:
-- **Machine type** (personal / work)
+- **Machine type** (personal / work) — controls which apps are installed (personal skips Steam, Spotify, crypto apps on work machines)
 - **GPG signing key ID** (leave empty to skip commit signing)
 
 This automatically:
-- Installs oh-my-zsh, Homebrew, and all packages
+- Installs oh-my-zsh (via `.chezmoiexternal.toml`, auto-updates weekly)
+- Installs Homebrew and all packages from the templated Brewfile
 - Installs Mac App Store apps (Amphetamine) via `mas`
 - Deploys shell config, git config (with GPG signing if key provided), global gitignore
 - Decrypts and deploys `~/.zshrc.local` (secrets — AWS, GitHub, Jira credentials)
 - Configures macOS: Dock, Finder, keyboard, trackpad, screenshots, privacy, clock
+- Sets up Dock layout (re-runs automatically when config changes)
 - Sets up global ggshield pre-commit hook (secret scanning on every commit)
 - Sets up iTerm2 to load preferences from `~/.config/iterm2/`
+- Clones [claude-code-config](https://github.com/edjchapman/claude-code-config) and symlinks `~/.claude/{settings.json,agents,commands}`
 
 ### Step 3: Run sudo script (requires password)
 
@@ -86,8 +89,10 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 | **Secrets** | AWS, GitHub PAT, Jira credentials (age-encrypted) | `encrypted_dot_zshrc.local.age` |
 | **Git** | User, pull rebase, GPG signing, global hooks | `.gitconfig` (template) |
 | **Secret scanning** | ggshield pre-commit on all repos | `.config/git/hooks/pre-commit` |
-| **Packages** | CLI tools, desktop apps, VS Code extensions, App Store | `Brewfile` |
-| **Dock** | Auto-hide, size, no recents, fixed spaces, layout | `run_onchange_03`, `run_once_05` |
+| **Packages** | CLI tools, desktop apps, VS Code extensions, App Store | `Brewfile.tmpl` (templated by machine type) |
+| **Node** | Node version management via `n` | Brewfile |
+| **Claude Code** | Settings, agents, commands (symlinked from config repo) | `.chezmoiexternal.toml` + symlinks |
+| **Dock** | Auto-hide, size, no recents, fixed spaces, layout | `run_onchange_03`, `run_onchange_05` |
 | **Finder** | Hidden files, extensions, path bar, list view | `run_onchange_03` |
 | **Keyboard** | Fast repeat, no autocorrect/smart quotes/auto-caps | `run_onchange_03` |
 | **Trackpad** | Tap to click | `run_onchange_03` |
@@ -104,6 +109,17 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 | **Email** | ProtonMail | Brewfile (configure in-app) |
 | **Passwords** | Dashlane | Browser extension (manual) |
 
+## External Dependencies
+
+Managed via `.chezmoiexternal.toml` — automatically cloned/updated during `chezmoi apply`:
+
+| Dependency | Location | Update Frequency |
+|------------|----------|-----------------|
+| [oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) | `~/.oh-my-zsh/` | Weekly |
+| [claude-code-config](https://github.com/edjchapman/claude-code-config) | `~/.config/claude-code-config/` | Weekly |
+
+To force an update: `chezmoi apply --refresh-externals`
+
 ## Encryption
 
 Secrets are encrypted with [age](https://age-encryption.org/) and stored in the repo as `.age` files. They decrypt automatically during `chezmoi apply` using the key at `~/.config/chezmoi/key.txt`.
@@ -111,6 +127,21 @@ Secrets are encrypted with [age](https://age-encryption.org/) and stored in the 
 **To transfer secrets to a new machine:** Copy `key.txt` before running `chezmoi init --apply`. This is the only file you need to transfer manually — everything else comes from the repo.
 
 **To update secrets:** Edit `~/.zshrc.local` directly, then run `chezmoi add --encrypt ~/.zshrc.local` to re-encrypt.
+
+## Customizing the Dock
+
+Edit `run_onchange_05-dock-layout.sh` and run `chezmoi apply` — it re-runs automatically when the file changes.
+
+## 2FA Checklist
+
+**Priority:** Email, GitHub, AWS, banking, Dashlane, domain registrar
+
+**Method (best to worst):** Hardware key > TOTP > Push > SMS
+
+**Actions:**
+- [ ] Audit at https://2fa.directory
+- [ ] Move SMS-based 2FA to TOTP
+- [ ] Store recovery codes in Dashlane
 
 ## Lockdown Mode
 
@@ -125,28 +156,9 @@ After setup, run:
 
 ```bash
 chezmoi doctor         # all checks should pass
+chezmoi verify         # no output = all targets match source
 git log --show-signature -1  # verify GPG signing (if configured)
 ```
-
-## Customizing the Dock
-
-```bash
-chezmoi cd
-# Edit run_once_05-dock-layout.sh
-chezmoi state delete-bucket --bucket=scriptState
-chezmoi apply
-```
-
-## 2FA Checklist
-
-**Priority:** Email, GitHub, AWS, banking, Dashlane, domain registrar
-
-**Method (best to worst):** Hardware key > TOTP > Push > SMS
-
-**Actions:**
-- [ ] Audit at https://2fa.directory
-- [ ] Move SMS-based 2FA to TOTP
-- [ ] Store recovery codes in Dashlane
 
 ## Updating
 
