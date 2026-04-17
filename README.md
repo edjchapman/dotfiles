@@ -6,7 +6,12 @@ Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a fully configured, 
 
 ### Step 1: Transfer age key
 
-Copy `~/.config/chezmoi/key.txt` from your existing machine. This single file unlocks all encrypted secrets in the repo.
+```bash
+mkdir -p ~/.config/chezmoi
+# Copy key.txt from your existing machine (e.g. AirDrop, USB, password manager)
+```
+
+Place the file at `~/.config/chezmoi/key.txt`. This single file unlocks all encrypted secrets in the repo.
 
 ### Step 2: Run chezmoi (automated)
 
@@ -15,7 +20,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply edjchapman
 ```
 
 You'll be prompted for:
-- **Machine type** (personal / work) — controls which apps are installed (personal skips Steam, Spotify, crypto apps on work machines)
+- **Machine type** (personal / work) — work machines skip personal apps (Steam, Spotify, crypto wallets, etc.)
 - **GPG signing key ID** (leave empty to skip commit signing)
 
 This automatically:
@@ -30,7 +35,15 @@ This automatically:
 - Sets up iTerm2 to load preferences from `~/.config/iterm2/`
 - Clones [claude-code-config](https://github.com/edjchapman/claude-code-config) and symlinks `~/.claude/{settings.json,agents,commands}`
 
-### Step 3: Run sudo script (requires password)
+### Step 3: Authenticate tools
+
+```bash
+gh auth login                  # GitHub CLI — enables git credentials + PR workflow
+ggshield auth login            # GitGuardian — enables secret scanning pre-commit hook
+aws sso login                  # AWS SSO — authenticate default profile
+```
+
+### Step 4: Run sudo script (requires password)
 
 ```bash
 ~/.config/chezmoi/scripts/macos-sudo.sh
@@ -43,7 +56,7 @@ This enables:
 - Automatic software updates enforced
 - Disables remote Apple events
 
-### Step 4: GPG key setup (if signing commits)
+### Step 5: GPG key setup (if signing commits)
 
 ```bash
 # Generate a new GPG key
@@ -56,7 +69,7 @@ gpg --armor --export <KEY_ID> | gh gpg-key add -
 
 Then re-run `chezmoi init` to set the signing key ID.
 
-### Step 5: Configure apps (manual, in-app only)
+### Step 6: Configure apps (manual, in-app only)
 
 **Brave Browser** (set as default via System Settings > Default Browser)
 - Shields: Aggressive trackers, Strict fingerprinting, HTTPS-only
@@ -73,9 +86,9 @@ Then re-run `chezmoi init` to set the signing key ID.
 
 **iTerm2** — Launch once to populate `~/.config/iterm2/`
 
-### Step 6: SSH keys
+### Step 7: SSH keys
 
-SSH is synced via Google Drive:
+Sign in to **Google Drive** (installed via Brewfile), wait for sync, then:
 
 ```bash
 ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
