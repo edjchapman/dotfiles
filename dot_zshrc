@@ -43,11 +43,6 @@ compinit
 # iTerm2 shell integration (installed on first launch of iTerm2)
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
 
-# NVM (Node Version Manager) — install via: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
 # MySQL — paths for mysql@8.0 (installed via Brewfile)
 export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
 export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"

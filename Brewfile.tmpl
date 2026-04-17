@@ -98,6 +98,7 @@ cask "proton-mail"
 cask "chatgpt"
 cask "chatgpt-atlas"
 
+{{ if eq .machine_type "personal" -}}
 # Desktop Apps — Media & Social
 cask "spotify"
 cask "steam"
@@ -110,6 +111,7 @@ cask "sparrow"
 
 # Desktop Apps — Other
 cask "algoapp"
+{{ end -}}
 
 # Mac App Store (requires signed-in Apple ID)
 mas "Amphetamine", id: 937984704
