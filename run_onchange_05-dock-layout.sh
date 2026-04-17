@@ -1,6 +1,5 @@
 #!/bin/bash
-# Set up Dock layout — runs once on first setup
-# Edit and re-run manually to change: chezmoi apply won't re-trigger this
+# Set up Dock layout — re-runs automatically when this file changes
 
 set -euo pipefail
 

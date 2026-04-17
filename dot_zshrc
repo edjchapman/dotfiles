@@ -54,7 +54,7 @@ export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"
 export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.0/include"
 
 # Machine-specific secrets and credentials (AWS, GitHub, Jira, etc.)
-# Create ~/.zshrc.local manually on each machine — not tracked by chezmoi
+# Managed by chezmoi (encrypted_dot_zshrc.local.age)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
 # Windsurf
