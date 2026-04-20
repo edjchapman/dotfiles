@@ -9,9 +9,10 @@ Managed with [chezmoi](https://www.chezmoi.io/). Reproduces a fully configured, 
 ```bash
 mkdir -p ~/.config/chezmoi
 # Copy key.txt from your existing machine (e.g. AirDrop, USB, password manager)
+chmod 600 ~/.config/chezmoi/key.txt
 ```
 
-Place the file at `~/.config/chezmoi/key.txt`. This single file unlocks all encrypted secrets in the repo.
+Place the file at `~/.config/chezmoi/key.txt` and restrict permissions to owner-only. This single file unlocks all encrypted secrets in the repo.
 
 ### Step 2: Bootstrap (one command, two prompts)
 
@@ -106,7 +107,7 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 | Category            | What                                                                            | Config                                                   |
 |---------------------|---------------------------------------------------------------------------------|----------------------------------------------------------|
 | **Shell**           | oh-my-zsh, plugins, aliases, functions                                          | `.zshrc`, `.zprofile`, `.zshenv`                         |
-| **Secrets**         | AWS, GitHub PAT, Jira credentials (age-encrypted)                               | `encrypted_dot_zshrc.local.age`                          |
+| **Secrets**         | AWS, GitHub PAT, Jira credentials (age-encrypted)                               | `encrypted_private_dot_zshrc.local.age`                          |
 | **Git**             | User, pull rebase, GPG signing, arch-aware credential helpers, global hooks     | `.gitconfig` (template)                                  |
 | **Secret scanning** | ggshield pre-commit on all repos                                                | `.config/git/hooks/pre-commit`                           |
 | **Packages**        | CLI tools, desktop apps, VS Code extensions, App Store                          | `Brewfile.tmpl` (templated by machine type)              |
