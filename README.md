@@ -50,9 +50,9 @@ aws sso login                  # AWS SSO — authenticate default profile
 ```
 
 This enables:
-- macOS firewall + stealth mode
+- macOS firewall and stealth mode
 - Touch ID for sudo (survives macOS updates)
-- Energy settings (display sleep 10m, Power Nap off)
+- Energy settings (display sleep 10 m, Power Nap off)
 - Automatic software updates enforced
 - Disables remote Apple events
 
@@ -96,40 +96,40 @@ ln -s ~/Google\ Drive/My\ Drive/.ssh ~/.ssh
 
 ## What's Automated
 
-| Category | What | Config |
-|----------|------|--------|
-| **Shell** | oh-my-zsh, plugins, aliases, functions | `.zshrc`, `.zprofile`, `.zshenv` |
-| **Secrets** | AWS, GitHub PAT, Jira credentials (age-encrypted) | `encrypted_dot_zshrc.local.age` |
-| **Git** | User, pull rebase, GPG signing, global hooks | `.gitconfig` (template) |
-| **Secret scanning** | ggshield pre-commit on all repos | `.config/git/hooks/pre-commit` |
-| **Packages** | CLI tools, desktop apps, VS Code extensions, App Store | `Brewfile.tmpl` (templated by machine type) |
-| **Node** | Node version management via `n` | Brewfile |
-| **Claude Code** | Settings, agents, commands (symlinked from config repo) | `.chezmoiexternal.toml` + symlinks |
-| **Dock** | Auto-hide, size, no recents, fixed spaces, layout | `run_onchange_03`, `run_onchange_05` |
-| **Finder** | Hidden files, extensions, path bar, list view | `run_onchange_03` |
-| **Keyboard** | Fast repeat, no autocorrect/smart quotes/auto-caps | `run_onchange_03` |
-| **Trackpad** | Tap to click | `run_onchange_03` |
-| **Screenshots** | ~/Downloads, PNG, no shadow | `run_onchange_03` |
-| **Clock** | Day, date, time in menu bar | `run_onchange_03` |
-| **Privacy** | Telemetry, ads, Spotlight, Siri, AirDrop, screen lock | `run_onchange_03` |
-| **Search** | DuckDuckGo default | `run_onchange_03` |
-| **iTerm2** | Prefs from `~/.config/iterm2/` | `run_onchange_03` |
-| **Firewall** | Inbound (macOS) + outbound (LuLu) | `macos-sudo.sh` + Brewfile |
-| **Touch ID sudo** | Fingerprint for sudo | `macos-sudo.sh` |
-| **Energy** | Display sleep, system sleep, Power Nap off | `macos-sudo.sh` |
-| **Auto-updates** | macOS + critical updates enforced | `macos-sudo.sh` |
-| **VPN** | NordVPN | Brewfile (configure in-app) |
-| **Email** | ProtonMail | Brewfile (configure in-app) |
-| **Passwords** | Dashlane | Browser extension (manual) |
+| Category            | What                                                                            | Config                                      |
+|---------------------|---------------------------------------------------------------------------------|---------------------------------------------|
+| **Shell**           | oh-my-zsh, plugins, aliases, functions                                          | `.zshrc`, `.zprofile`, `.zshenv`            |
+| **Secrets**         | AWS, GitHub PAT, Jira credentials (age-encrypted)                               | `encrypted_dot_zshrc.local.age`             |
+| **Git**             | User, pull rebase, GPG signing, arch-aware credential helpers, global hooks     | `.gitconfig` (template)                     |
+| **Secret scanning** | ggshield pre-commit on all repos                                                | `.config/git/hooks/pre-commit`              |
+| **Packages**        | CLI tools, desktop apps, VS Code extensions, App Store                          | `Brewfile.tmpl` (templated by machine type) |
+| **Node**            | Node version management via `n`                                                 | Brewfile                                    |
+| **Claude Code**     | Settings, agents, commands (symlinked from config repo)                         | `.chezmoiexternal.toml` + symlinks          |
+| **Dock**            | Auto-hide, size, no recents, fixed spaces, layout (conditional by machine type) | `run_onchange_03`, `run_onchange_05`        |
+| **Finder**          | Hidden files, extensions, path bar, list view                                   | `run_onchange_03`                           |
+| **Keyboard**        | Fast repeat, no autocorrect/smart quotes/auto-caps                              | `run_onchange_03`                           |
+| **Trackpad**        | Tap to click                                                                    | `run_onchange_03`                           |
+| **Screenshots**     | ~/Downloads, PNG, no shadow                                                     | `run_onchange_03`                           |
+| **Clock**           | Day, date, time in menu bar                                                     | `run_onchange_03`                           |
+| **Privacy**         | Telemetry, ads, Spotlight, Siri, AirDrop, screen lock                           | `run_onchange_03`                           |
+| **Search**          | DuckDuckGo default                                                              | `run_onchange_03`                           |
+| **iTerm2**          | Prefs from `~/.config/iterm2/`                                                  | `run_onchange_03`                           |
+| **Firewall**        | Inbound (macOS) + outbound (LuLu)                                               | `macos-sudo.sh` + Brewfile                  |
+| **Touch ID sudo**   | Fingerprint for sudo                                                            | `macos-sudo.sh`                             |
+| **Energy**          | Display sleep, system sleep, Power Nap off                                      | `macos-sudo.sh`                             |
+| **Auto-updates**    | macOS + critical updates enforced                                               | `macos-sudo.sh`                             |
+| **VPN**             | NordVPN                                                                         | Brewfile (configure in-app)                 |
+| **Email**           | ProtonMail                                                                      | Brewfile (configure in-app)                 |
+| **Passwords**       | Dashlane                                                                        | Browser extension (manual)                  |
 
 ## External Dependencies
 
 Managed via `.chezmoiexternal.toml` — automatically cloned/updated during `chezmoi apply`:
 
-| Dependency | Location | Update Frequency |
-|------------|----------|-----------------|
-| [oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) | `~/.oh-my-zsh/` | Weekly |
-| [claude-code-config](https://github.com/edjchapman/claude-code-config) | `~/.config/claude-code-config/` | Weekly |
+| Dependency                                                             | Location                        | Update Frequency |
+|------------------------------------------------------------------------|---------------------------------|------------------|
+| [oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh)                        | `~/.oh-my-zsh/`                 | Weekly           |
+| [claude-code-config](https://github.com/edjchapman/claude-code-config) | `~/.config/claude-code-config/` | Weekly           |
 
 To force an update: `chezmoi apply --refresh-externals`
 
@@ -143,7 +143,7 @@ Secrets are encrypted with [age](https://age-encryption.org/) and stored in the 
 
 ## Customizing the Dock
 
-Edit `run_onchange_05-dock-layout.sh` and run `chezmoi apply` — it re-runs automatically when the file changes.
+Edit `run_onchange_05-dock-layout.sh.tmpl` and run `chezmoi apply` — it re-runs automatically when the file changes. Personal-only apps (e.g. Spotify) are conditionally included based on machine type.
 
 ## 2FA Checklist
 

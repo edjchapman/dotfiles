@@ -27,7 +27,9 @@ dockutil --add /Applications/iTerm.app --no-restart
 dockutil --add /Applications/Visual\ Studio\ Code.app --no-restart
 dockutil --add /Applications/Obsidian.app --no-restart
 dockutil --add /Applications/Slack.app --no-restart
+{{ if eq .machine_type "personal" -}}
 dockutil --add /Applications/Spotify.app --no-restart
+{{ end -}}
 dockutil --add /System/Applications/System\ Settings.app --no-restart
 
 # Add Downloads folder as a stack

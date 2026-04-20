@@ -10,8 +10,6 @@
 	autoSetupRemote = true
 [init]
 	defaultBranch = main
-[credential]
-	helper = manager-core
 [core]
 	ignorecase = false
 	autocrlf = input
@@ -24,7 +22,7 @@
 {{- end }}
 [credential "https://github.com"]
 	helper =
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !{{ if eq .chezmoi.arch "arm64" }}/opt/homebrew/bin/gh{{ else }}/usr/local/bin/gh{{ end }} auth git-credential
 [credential "https://gist.github.com"]
 	helper =
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !{{ if eq .chezmoi.arch "arm64" }}/opt/homebrew/bin/gh{{ else }}/usr/local/bin/gh{{ end }} auth git-credential
