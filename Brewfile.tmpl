@@ -2,60 +2,58 @@
 # Applied automatically by chezmoi when this file changes
 # To add packages: edit this file, then run `chezmoi apply`
 
-# Taps
-tap "aws/tap"
-
 # CLI Tools
 brew "bash"
+brew "bat"
 brew "chezmoi"
+brew "coreutils"
+brew "curl"
+brew "diffutils"
 brew "dockutil"
+brew "dust"
+brew "eza"
+brew "fd"
+brew "findutils"
+brew "fnm"
+brew "fzf"
+brew "gawk"
 brew "gh"
 brew "git"
+brew "gnu-sed"
 brew "go"
 brew "grep"
-brew "n"
+brew "htop"
+brew "jq"
+brew "less"
 brew "mas"
 brew "nmap"
 brew "pandoc"
 brew "pipx"
 brew "pre-commit"
-brew "python@3.11"
-brew "redis"
+brew "python@3.13"
+brew "ripgrep"
+brew "rsync"
 brew "ruby"
 brew "thefuck"
+brew "tldr"
 brew "tree"
+brew "valkey"
 brew "watch"
 brew "wget"
 brew "zsh"
 brew "zsh-completions"
 
 # Build / Dev dependencies
-brew "automake"
-brew "binutils"
-brew "libass"
-brew "libffi"
-brew "libmagic"
-brew "libmemcached"
-brew "libxml2"
 brew "openssl@3"
-brew "pcre"
 brew "pkgconf"
-brew "readline"
-brew "sqlite"
-brew "xz"
-brew "zlib"
 
 # Database
-brew "mysql-client"
-brew "mysql@8.0"
-brew "uwsgi"
+brew "mysql@8.4"
 
 # Security & Privacy
 brew "age"
+brew "awscli"
 brew "ggshield"
-
-# Cloud
-brew "aws/tap/lightsailctl"
 
 # Desktop Apps — Browsers
 cask "brave-browser"
@@ -69,7 +67,6 @@ cask "cursor"
 cask "iterm2"
 cask "jetbrains-toolbox"
 cask "orbstack"
-cask "pgadmin4"
 cask "postgres-app"
 cask "postico"
 cask "visual-studio-code"
@@ -83,10 +80,8 @@ cask "obsidian"
 cask "slack"
 
 # Desktop Apps — Utilities
-cask "abyssoft-teleport"
 cask "bluesnooze"
 cask "font-iosevka"
-cask "raspberry-pi-imager"
 
 # Desktop Apps — Privacy & Security
 cask "gpg-suite"
@@ -96,21 +91,16 @@ cask "proton-mail"
 
 # Desktop Apps — AI
 cask "chatgpt"
-cask "chatgpt-atlas"
 
 {{ if eq .machine_type "personal" -}}
 # Desktop Apps — Media & Social
 cask "spotify"
 cask "steam"
-cask "tidal"
 cask "whatsapp"
 
 # Desktop Apps — Crypto
 cask "monero-wallet"
 cask "sparrow"
-
-# Desktop Apps — Other
-cask "algoapp"
 {{ end -}}
 
 # Mac App Store (requires signed-in Apple ID)
@@ -135,16 +125,12 @@ vscode "dnut.rewrap-revived"
 vscode "docker.docker"
 vscode "donjayamanne.githistory"
 vscode "ecmel.vscode-html-css"
-vscode "formulahendry.auto-close-tag"
 vscode "github.copilot-chat"
-vscode "github.remotehub"
 vscode "github.vscode-github-actions"
 vscode "github.vscode-pull-request-github"
 vscode "golang.go"
-vscode "isudox.vscode-jetbrains-keybindings"
 vscode "k--kato.intellij-idea-keybindings"
 vscode "ms-azuretools.vscode-containers"
-vscode "ms-azuretools.vscode-docker"
 vscode "ms-python.debugpy"
 vscode "ms-python.python"
 vscode "ms-python.vscode-pylance"
@@ -153,13 +139,9 @@ vscode "ms-toolsai.jupyter"
 vscode "ms-toolsai.jupyter-keymap"
 vscode "ms-toolsai.jupyter-renderers"
 vscode "ms-vscode-remote.remote-containers"
-vscode "ms-vscode.azure-repos"
-vscode "ms-vscode.cpptools"
 vscode "ms-vscode.remote-repositories"
 vscode "ms-vscode.vscode-js-profile-flame"
-vscode "msjsdiag.vscode-react-native"
 vscode "mutantdino.resourcemonitor"
-vscode "platformio.platformio-ide"
 vscode "redhat.vscode-yaml"
 vscode "rokoroku.vscode-theme-darcula"
 vscode "streetsidesoftware.code-spell-checker"

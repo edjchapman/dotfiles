@@ -43,6 +43,14 @@ export TERM=xterm-256color
 export PATH="/usr/local/sbin:$HOME/bin:/usr/local/bin:$PATH"
 export PATH="$PATH:$HOME/.local/bin"
 
+# GNU tools — override BSD defaults with GNU versions
+if [[ -d /opt/homebrew/opt/coreutils ]]; then
+    for gnubin in coreutils findutils gnu-sed gawk diffutils; do
+        [[ -d "/opt/homebrew/opt/$gnubin/libexec/gnubin" ]] && \
+            export PATH="/opt/homebrew/opt/$gnubin/libexec/gnubin:$PATH"
+    done
+fi
+
 # Completions (homebrew + custom)
 fpath=(~/.zfunc $fpath)
 if type brew &>/dev/null; then
@@ -51,14 +59,24 @@ fi
 autoload -Uz compinit
 compinit
 
+# fnm (Fast Node Manager) — auto-switch Node version on cd
+if command -v fnm &>/dev/null; then
+    eval "$(fnm env --use-on-cd --shell zsh)"
+fi
+
+# fzf key bindings and completion
+if command -v fzf &>/dev/null; then
+    source <(fzf --zsh)
+fi
+
 # iTerm2 shell integration (installed on first launch of iTerm2)
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
 
-# MySQL — paths for mysql@8.0 (only if installed)
-if [[ -d /opt/homebrew/opt/mysql@8.0 ]]; then
-    export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
-    export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"
-    export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.0/include"
+# MySQL — paths for mysql@8.4 (only if installed)
+if [[ -d /opt/homebrew/opt/mysql@8.4 ]]; then
+    export PATH="/opt/homebrew/opt/mysql@8.4/bin:$PATH"
+    export LDFLAGS="-L/opt/homebrew/opt/mysql@8.4/lib"
+    export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.4/include"
 fi
 
 # Machine-specific secrets and credentials (AWS, GitHub, Jira, etc.)
