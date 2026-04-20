@@ -58,16 +58,21 @@ This enables:
 
 ### Step 5: GPG key setup (if signing commits)
 
-```bash
-# Generate a new GPG key
-gpg --quick-gen-key "Ed Chapman <edchapman88@gmail.com>" ed25519 sign 0
+**Existing key:** Find your key ID and re-run init to set it:
 
-# Upload to GitHub
-gh auth refresh -s write:gpg_key
-gpg --armor --export <KEY_ID> | gh gpg-key add -
+```bash
+gpg --list-secret-keys --keyid-format long   # key ID is the hex after the algorithm
+chezmoi init
 ```
 
-Then re-run `chezmoi init` to set the signing key ID.
+**New key:**
+
+```bash
+gpg --quick-gen-key "Ed Chapman <edchapman88@gmail.com>" ed25519 sign 0
+gh auth refresh -s write:gpg_key
+gpg --armor --export <KEY_ID> | gh gpg-key add -
+chezmoi init   # enter the new key ID when prompted
+```
 
 ### Step 6: Configure apps (manual, in-app only)
 
