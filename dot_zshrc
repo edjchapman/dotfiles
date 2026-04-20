@@ -10,6 +10,16 @@ export ENABLE_CORRECTION="true"
 
 export HIST_STAMPS="yyyy-mm-dd"
 
+# History configuration
+HISTSIZE=50000
+SAVEHIST=50000
+HISTFILE=~/.zsh_history
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_FIND_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY
+
 export plugins=(
     git
     python
@@ -20,7 +30,8 @@ export plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
-eval $(thefuck --alias)
+# Lazy-load thefuck (saves ~200ms on shell startup)
+fuck() { unfunction fuck; eval $(thefuck --alias); fuck "$@"; }
 
 # Set CLICOLOR if you want Ansi Colors in iTerm2
 export CLICOLOR=1
@@ -43,17 +54,19 @@ compinit
 # iTerm2 shell integration (installed on first launch of iTerm2)
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
 
-# MySQL — paths for mysql@8.0 (installed via Brewfile)
-export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
-export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.0/include"
+# MySQL — paths for mysql@8.0 (only if installed)
+if [[ -d /opt/homebrew/opt/mysql@8.0 ]]; then
+    export PATH="/opt/homebrew/opt/mysql@8.0/bin:$PATH"
+    export LDFLAGS="-L/opt/homebrew/opt/mysql@8.0/lib"
+    export CPPFLAGS="-I/opt/homebrew/opt/mysql@8.0/include"
+fi
 
 # Machine-specific secrets and credentials (AWS, GitHub, Jira, etc.)
 # Managed by chezmoi (encrypted_dot_zshrc.local.age)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
-# Windsurf
-export PATH="$HOME/.codeium/windsurf/bin:$PATH"
+# Windsurf (only if installed)
+[[ -d "$HOME/.codeium/windsurf/bin" ]] && export PATH="$HOME/.codeium/windsurf/bin:$PATH"
 
 # Sync with origin and safely clean up stale branches
 hub-sync-clean() {
@@ -152,8 +165,5 @@ BREWUP_STAMP="$HOME/.cache/brewup.last"
 mkdir -p "$HOME/.cache"
 
 if [[ ! -f "$BREWUP_STAMP" || "$(date +%F)" != "$(cat "$BREWUP_STAMP" 2>/dev/null)" ]]; then
-  brewup && date +%F >| "$BREWUP_STAMP"
+  (brewup && date +%F >| "$BREWUP_STAMP") &>/dev/null &!
 fi
-
-# Rust
-export PATH="$HOME/.cargo/bin:$PATH"

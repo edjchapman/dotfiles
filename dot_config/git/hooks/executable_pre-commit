@@ -9,7 +9,7 @@ if command -v ggshield &>/dev/null; then
     if [ $exit_code -ne 0 ]; then
         echo ""
         echo "ggshield detected secrets in your commit. Fix them before committing."
-        echo "To skip this check (not recommended): git commit --no-verify"
+        echo "If this is a false positive, allowlist the secret in .gitguardian.yaml"
         exit $exit_code
     fi
 fi

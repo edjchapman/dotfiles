@@ -11,8 +11,7 @@ export PATH="$PATH:$HOME/Library/Application Support/JetBrains/Toolbox/scripts"
 
 
 # Created by `pipx` on 2023-07-05 18:12:07
-export PATH="$PATH:/Users/ed/.local/bin"
+export PATH="$PATH:$HOME/.local/bin"
 
-# Added by OrbStack: command-line tools and integration
-# This won't be added again if you remove it.
-source ~/.orbstack/shell/init.zsh 2>/dev/null || :
+# OrbStack shell integration (only if installed)
+[[ -f ~/.orbstack/shell/init.zsh ]] && source ~/.orbstack/shell/init.zsh 2>/dev/null || :
