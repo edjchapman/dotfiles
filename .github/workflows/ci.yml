@@ -39,8 +39,7 @@ jobs:
             chezmoi execute-template \
               --source="$(pwd)" \
               --init \
-              --promptChoice machine_type=personal \
-              --promptString gpg_signing_key=test \
+              --override-data '{"machine_type":"personal","gpg_signing_key":"test"}' \
               < "$tmpl" > /dev/null || failed=1
           done
           exit $failed
