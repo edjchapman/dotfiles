@@ -43,15 +43,12 @@ jobs:
       - name: Install chezmoi
         run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
 
-      - name: Validate template syntax
+      - name: Validate templates via chezmoi init (dry-run)
         run: |
-          for tmpl in $(find . -name '*.tmpl' -not -path './.git/*'); do
-            echo "Validating $tmpl..."
-            chezmoi execute-template --init \
-              --promptString 'machine_type=personal' \
-              --promptString 'gpg_signing_key=' \
-              < "$tmpl" > /dev/null
-          done
+          chezmoi init --source="$(pwd)" --no-tty \
+            --promptString machine_type=personal \
+            --promptString gpg_signing_key=test \
+            --dry-run
 
   yaml-lint:
     name: YAML lint
