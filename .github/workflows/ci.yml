@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  shellcheck:
-    name: ShellCheck
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,20 +19,8 @@ jobs:
       - name: Install ShellCheck
         run: sudo apt-get install -y shellcheck
 
-      - name: Lint shell scripts
-        run: |
-          find . -name '*.sh' -o -name '*.sh.tmpl' | while read -r file; do
-            echo "Checking $file..."
-            # Strip chezmoi template directives before linting
-            sed -E 's/\{\{.*\}\}//g' "$file" | shellcheck -s bash -e SC1071,SC2086 -
-          done
-
-      - name: Lint executable scripts
-        run: |
-          find . -name 'executable_*' | while read -r file; do
-            echo "Checking $file..."
-            shellcheck -s bash -e SC1071,SC2086 "$file"
-          done
+      - name: Run make lint
+        run: make lint
 
   validate-templates:
     name: Validate chezmoi templates
@@ -45,24 +33,12 @@ jobs:
 
       - name: Validate templates via chezmoi init (dry-run)
         run: |
-          chezmoi init --source="$(pwd)" --no-tty \
-            --promptString machine_type=personal \
-            --promptString gpg_signing_key=test \
+          mkdir -p /tmp/chezmoi-ci
+          cat > /tmp/chezmoi-ci/chezmoi.toml <<'EOF'
+          [data]
+              machine_type = "personal"
+              gpg_signing_key = "test"
+          EOF
+          chezmoi init --source="$(pwd)" \
+            --config-path=/tmp/chezmoi-ci/chezmoi.toml \
             --dry-run
-
-  yaml-lint:
-    name: YAML lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Lint YAML files
-        uses: ibiqlik/action-yamllint@v3
-        with:
-          file_or_dir: .github/
-          config_data: |
-            extends: default
-            rules:
-              line-length:
-                max: 120
-              truthy: disable

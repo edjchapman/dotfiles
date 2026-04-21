@@ -14,6 +14,11 @@ if command -v ggshield &>/dev/null; then
     fi
 fi
 
+# Run ShellCheck via Makefile if in the dotfiles repo
+if [ -f Makefile ] && grep -q '^lint:' Makefile && command -v shellcheck &>/dev/null; then
+    make lint
+fi
+
 # Run project-local pre-commit hooks if they exist
 if [ -f .pre-commit-config.yaml ] && command -v pre-commit &>/dev/null; then
     pre-commit run --hook-stage pre-commit "$@"
