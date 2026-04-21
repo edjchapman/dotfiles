@@ -1,3 +1,5 @@
+.github
 LICENSE
+Makefile
 README.md
 Brewfile.tmpl

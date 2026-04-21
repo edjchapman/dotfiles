@@ -1,5 +1,7 @@
 # Dotfiles
 
+[![CI](https://github.com/edjchapman/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/edjchapman/dotfiles/actions/workflows/ci.yml)
+
 Automated, reproducible, privacy-hardened macOS configuration managed with [chezmoi](https://www.chezmoi.io/).
 
 One command bootstraps a clean Mac into a fully configured development environment: shell, packages, git config, encrypted secrets, macOS system preferences, Dock layout, firewall, and secret-scanning hooks. Everything is idempotent and version-controlled.
