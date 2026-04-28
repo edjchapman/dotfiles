@@ -1,5 +1,27 @@
+# Files in this list live in the source repo but are NOT deployed to $HOME.
+# Repo metadata, agentic scaffolding, CI, lint configs, and docs all belong here.
+
+# Repo metadata
 .github
+.gitattributes
+.gitleaks.toml
 LICENSE
 Makefile
 README.md
+CLAUDE.md
+AGENTS.md
+
+# Templates that are rendered/consumed by scripts, not deployed directly
 Brewfile.tmpl
+
+# Agentic scaffolding (project-scoped Claude Code config — not for $HOME)
+.claude
+
+# Linter/formatter configs that apply to this repo only
+.editorconfig
+.markdownlint-cli2.yaml
+.pre-commit-config.yaml
+.yamllint.yaml
+
+# Documentation
+docs

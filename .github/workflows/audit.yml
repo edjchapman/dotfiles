@@ -1,0 +1,33 @@
+---
+name: Monthly audit
+
+on:
+    schedule:
+        - cron: '0 8 1 * *'  # 1st of every month, 08:00 UTC
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    full-history-secret-scan:
+        name: gitleaks (full history)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: gitleaks/gitleaks-action@v2
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITLEAKS_CONFIG: .gitleaks.toml
+
+    chezmoi-doctor-smoke:
+        name: chezmoi doctor smoke test
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install chezmoi
+              run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            - run: chezmoi doctor || true   # informational only — many checks are macOS-specific

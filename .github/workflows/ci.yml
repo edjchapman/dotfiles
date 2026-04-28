@@ -1,45 +1,122 @@
+---
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    lint:
+        name: ShellCheck
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ludeeus/action-shellcheck@2.0.0
+              env:
+                  SHELLCHECK_OPTS: -s bash -e SC1071,SC2086
+              with:
+                  scandir: '.'
+                  additional_files: 'executable_*'
+                  ignore_paths: .git
 
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
+    fmt:
+        name: shfmt
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: mfinelli/setup-shfmt@v3
+              with:
+                  shfmt-version: 3.10.0
+            - run: make fmt-check
 
-      - name: Run make lint
-        run: make lint
+    yaml:
+        name: yamllint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ibiqlik/action-yamllint@v3
+              with:
+                  config_file: .yamllint.yaml
 
-  validate-templates:
-    name: Validate chezmoi templates
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    markdown:
+        name: markdownlint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: DavidAnson/markdownlint-cli2-action@v17
+              with:
+                  globs: '**/*.md'
 
-      - name: Install chezmoi
-        run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+    secrets:
+        name: gitleaks
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: gitleaks/gitleaks-action@v2
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate template syntax
-        run: |
-          failed=0
-          for tmpl in $(find . -name '*.tmpl' -not -path './.git/*' -not -name '.chezmoi.toml.tmpl'); do
-            echo "Validating $tmpl..."
-            chezmoi execute-template \
-              --source="$(pwd)" \
-              --init \
-              --override-data '{"machine_type":"personal","gpg_signing_key":"test"}' \
-              < "$tmpl" > /dev/null || failed=1
-          done
-          exit $failed
+    pre-commit:
+        name: pre-commit (all hooks)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.13'
+            - name: Install chezmoi
+              run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            - name: Install shellcheck
+              run: sudo apt-get update && sudo apt-get install -y shellcheck
+            - uses: pre-commit/action@v3.0.1
+
+    validate-templates:
+        name: chezmoi templates (${{ matrix.machine_type }} / ${{ matrix.arch }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                machine_type: [personal, work]
+                arch: [arm64, amd64]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install chezmoi
+              run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            - name: Render every .tmpl
+              run: |
+                  failed=0
+                  for tmpl in $(find . -name '*.tmpl' -not -path './.git/*' -not -name '.chezmoi.toml.tmpl'); do
+                      echo "Rendering $tmpl (machine=${{ matrix.machine_type }} arch=${{ matrix.arch }})"
+                      chezmoi execute-template \
+                          --init --source="$(pwd)" \
+                          --override-data '{"machine_type":"${{ matrix.machine_type }}","gpg_signing_key":"test","chezmoi":{"arch":"${{ matrix.arch }}"}}' \
+                          < "$tmpl" > /dev/null || failed=1
+                  done
+                  exit $failed
+
+    brew-bundle-check:
+        name: brew bundle check (macOS)
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install chezmoi
+              run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            - name: Render Brewfile and check
+              run: |
+                  chezmoi execute-template \
+                      --init --source="$(pwd)" \
+                      --override-data '{"machine_type":"personal","gpg_signing_key":""}' \
+                      < Brewfile.tmpl > /tmp/Brewfile.rendered
+                  echo "::group::Rendered Brewfile (first 40 lines)"
+                  head -n 40 /tmp/Brewfile.rendered
+                  echo "::endgroup::"
+                  # `brew bundle check` exits 1 if anything is missing, which is expected
+                  # on a fresh runner — we only want to fail on syntax errors and bad refs.
+                  brew bundle list --file=/tmp/Brewfile.rendered > /dev/null

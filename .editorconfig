@@ -1,0 +1,22 @@
+# Repo-level editor config (mirrors deployed `dot_editorconfig`).
+# Exists so editors operating on this repo match the runtime convention.
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{js,ts,jsx,tsx,json,yaml,yml,toml,css,scss,html}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.age]
+insert_final_newline = false
+trim_trailing_whitespace = false
