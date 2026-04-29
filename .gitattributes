@@ -1,0 +1,15 @@
+# Normalize line endings across Mac and Linux CI.
+* text=auto eol=lf
+
+# Shell + template files are always LF.
+*.sh           text eol=lf
+*.sh.tmpl      text eol=lf
+*.tmpl         text eol=lf
+Makefile       text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.toml         text eol=lf
+*.md           text eol=lf
+
+# Encrypted secrets are binary blobs — never normalize.
+*.age          binary

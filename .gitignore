@@ -1,3 +1,10 @@
 .idea/
+.vscode/
 .DS_Store
 bin/
+
+# Per-machine MCP server config (may contain tokens)
+.mcp.json
+
+# Per-machine Claude Code overrides
+.claude/settings.local.json

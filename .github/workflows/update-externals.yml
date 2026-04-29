@@ -1,0 +1,56 @@
+---
+name: Weekly externals update
+
+on:
+    schedule:
+        - cron: '15 9 * * 1'  # Mondays 09:15 UTC
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    check-externals:
+        name: Check pinned externals against upstream
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Compare oh-my-zsh pin to upstream master
+              id: omz
+              run: |
+                  pinned=$(grep -oE '[0-9a-f]{40}' .chezmoiexternal.toml | head -n1)
+                  upstream=$(git ls-remote https://github.com/ohmyzsh/ohmyzsh refs/heads/master | awk '{print $1}')
+                  echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+                  echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
+                  if [ "$pinned" = "$upstream" ]; then
+                      echo "stale=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "stale=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Bump pinned SHA
+              if: steps.omz.outputs.stale == 'true'
+              run: |
+                  sed -i "s/${{ steps.omz.outputs.pinned }}/${{ steps.omz.outputs.upstream }}/g" .chezmoiexternal.toml
+
+            - name: Create draft PR
+              if: steps.omz.outputs.stale == 'true'
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  branch: chore/weekly-externals-update
+                  delete-branch: true
+                  draft: true
+                  commit-message: "chore: bump oh-my-zsh pin"
+                  title: "chore: bump oh-my-zsh pin to ${{ steps.omz.outputs.upstream }}"
+                  body: |
+                      Automated weekly bump of the `oh-my-zsh` pinned SHA in `.chezmoiexternal.toml`.
+
+                      - Previous: `${{ steps.omz.outputs.pinned }}`
+                      - New: `${{ steps.omz.outputs.upstream }}`
+
+                      Review the upstream changelog before merging:
+                      https://github.com/ohmyzsh/ohmyzsh/compare/${{ steps.omz.outputs.pinned }}...${{ steps.omz.outputs.upstream }}
+                  add-paths: |
+                      .chezmoiexternal.toml

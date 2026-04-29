@@ -1,0 +1,39 @@
+---
+# Weekly `make ci` cron — catches drift introduced via the GitHub web UI,
+# ecosystem upgrades that break a previously-passing workflow, or any other
+# out-of-band change. Distinct from `audit.yml` which runs full-history
+# secret scans monthly.
+
+name: scheduled-check
+
+on:
+    schedule:
+        # Mondays 10:00 UTC — staggered after update-brew (09:00) and update-externals (09:15)
+        - cron: '0 10 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: scheduled-check-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    make-ci:
+        name: make ci (scheduled)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install chezmoi
+              run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            - name: Install linters
+              run: |
+                  sudo apt-get update && sudo apt-get install -y shellcheck
+                  curl -sS https://webi.sh/shfmt | sh
+                  python3 -m pip install --user yamllint
+                  npm install -g markdownlint-cli2
+                  curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+                    | sudo tar -xz -C /usr/local/bin gitleaks
+            - name: Run make ci
+              run: make ci

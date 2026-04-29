@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(chezmoi diff:*)",
+      "Bash(chezmoi verify)",
+      "Bash(chezmoi doctor)",
+      "Bash(chezmoi execute-template:*)",
+      "Bash(chezmoi cd)",
+      "Bash(chezmoi state:*)",
+      "Bash(shellcheck:*)",
+      "Bash(shfmt:*)",
+      "Bash(yamllint:*)",
+      "Bash(markdownlint-cli2:*)",
+      "Bash(gitleaks:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(brew bundle check:*)",
+      "Bash(brew bundle list:*)",
+      "Bash(brew outdated:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git restore --staged:*)",
+      "Bash(git stash:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh workflow run:*)"
+    ],
+    "deny": [
+      "Bash(chezmoi apply:*)",
+      "Bash(chezmoi re-add:*)",
+      "Bash(chezmoi add:*)",
+      "Bash(chezmoi update:*)",
+      "Bash(chezmoi init:*)",
+      "Bash(chezmoi forget:*)",
+      "Bash(chezmoi destroy:*)",
+      "Bash(make apply)",
+      "Bash(sudo:*)",
+      "Bash(rm -rf:*)",
+      "Bash(rm -rf /)",
+      "Bash(git push:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(git commit --no-verify:*)",
+      "Bash(git commit -n:*)",
+      "Bash(brew install:*)",
+      "Bash(brew uninstall:*)",
+      "Bash(brew bundle install:*)",
+      "Bash(brew bundle cleanup:*)",
+      "Bash(defaults write:*)",
+      "Bash(launchctl:*)",
+      "Edit(/Users/ed/.zshrc)",
+      "Edit(/Users/ed/.zshrc.local)",
+      "Edit(/Users/ed/.zprofile)",
+      "Edit(/Users/ed/.zshenv)",
+      "Edit(/Users/ed/.gitconfig)",
+      "Edit(/Users/ed/.config/chezmoi/key.txt)",
+      "Read(/Users/ed/.config/chezmoi/key.txt)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-destructive.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-edit-lint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

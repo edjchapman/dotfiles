@@ -1,0 +1,21 @@
+# gitleaks config for this repo.
+# Extends the default ruleset and allowlists known false positives.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secret values"
+paths = [
+    '''\.age$''',                              # encrypted blobs are not findings
+    '''dot_aws/encrypted_private_config\.age''',
+    '''encrypted_private_dot_zshrc\.local\.age''',
+    '''\.git/''',
+]
+
+regexes = [
+    # The age public recipient key in .chezmoi.toml.tmpl is intentionally public.
+    '''age1[0-9a-z]{58}''',
+    # Example/test placeholder used in CI overrides.
+    '''gpg_signing_key.*=.*"test"''',
+]
