@@ -27,6 +27,10 @@ repos:
       hooks:
           - id: shfmt
             args: [-i=4, -ci, -bn, -d]
+            # shfmt does not understand chezmoi template syntax ({{ ... }})
+            # so .sh.tmpl files are linted by `make lint` (which strips templates first)
+            # and explicitly NOT formatted here.
+            exclude: '\.tmpl$'
 
     - repo: https://github.com/adrienverge/yamllint
       rev: v1.35.1
