@@ -71,10 +71,15 @@ jobs:
             - uses: actions/setup-python@v5
               with:
                   python-version: '3.13'
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
             - name: Install chezmoi
               run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
-            - name: Install shellcheck
-              run: sudo apt-get update && sudo apt-get install -y shellcheck
+            - name: Install shellcheck and markdownlint-cli2
+              run: |
+                  sudo apt-get update && sudo apt-get install -y shellcheck
+                  npm install -g markdownlint-cli2
             - uses: pre-commit/action@v3.0.1
 
     validate-templates:
