@@ -122,6 +122,17 @@ chezmoi execute-template \
 
 See [`docs/runbooks/`](docs/runbooks) for full rotation procedures, new-machine bootstrap, and drift recovery.
 
+## Path-scoped rules
+
+When you start working on files matching specific patterns, also load the relevant `.claude/rules/*.md` file:
+
+| Pattern | Rule |
+|---|---|
+| `**/*.tmpl`, `Brewfile.tmpl` | [`.claude/rules/templates.md`](.claude/rules/templates.md) |
+| `encrypted_*`, `*.age`, `*.local`, `dot_aws/**` | [`.claude/rules/secrets.md`](.claude/rules/secrets.md) |
+| `run_once_*`, `run_onchange_*` | [`.claude/rules/macos-scripts.md`](.claude/rules/macos-scripts.md) |
+| `.chezmoi*.toml`, `.chezmoiignore`, `.chezmoiversion` | [`.claude/rules/chezmoi-config.md`](.claude/rules/chezmoi-config.md) |
+
 ## Pitfalls
 
 - **Editing `~/.zshrc` directly.** The change will be silently overwritten on next `chezmoi apply`. Edit `dot_zshrc` instead.

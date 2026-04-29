@@ -10,6 +10,11 @@ on:
 permissions:
     contents: read
 
+# Cancel superseded runs when a branch is force-pushed or another commit lands.
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     lint:
         name: ShellCheck
