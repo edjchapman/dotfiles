@@ -16,6 +16,10 @@ All notable changes to this repo are recorded here. Format follows [Keep a Chang
 
 - The tracked `standups/` directory. Local daily-logs written by the `session-end.sh` hook are now `.gitignore`d scratch; the canonical record is issue #114.
 
+### Fixed
+
+- GUI decryption (Finder "Services → Decrypt Selection") failed with `Decryption failed code = 152`. `~/.gnupg/gpg-agent.conf` is now chezmoi-managed (`private_dot_gnupg/private_gpg-agent.conf`) and pins `pinentry-program` to GPG Suite's `pinentry-mac`. Homebrew's `gnupg` 2.5 — pulled in as a transitive dependency of `gpgme`/`gpgmepp`/`poppler`, not installed on request — takes `PATH` precedence over MacGPG2 and ships only `pinentry-curses`; whichever `gpg-agent` claimed `~/.gnupg/S.gpg-agent` first served both frontends, so a GUI decrypt could be handed a terminal prompt with no terminal. Pinning the pinentry makes the outcome independent of which agent wins the socket.
+
 ### Security
 
 - `SECURITY.md` gains an "Accepted risks" section documenting the public-repo encryption trade-offs (ciphertext metadata visibility, no forward secrecy in age, retired credentials in historical ciphertext) and the 2026-07-02 verification that the retired GitHub PAT is dead.

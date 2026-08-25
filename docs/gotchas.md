@@ -92,6 +92,25 @@ Things that have bitten the maintainer and would bite a new contributor — coll
 
     **The strip must stay non-greedy**: `.tmpl` files are scanned with their `{{ }}` actions removed by `scripts/strip-template-actions.sh` — the same helper the Makefile's `lint` target pipes templates through before ShellCheck, so the two scans can't drift apart. Its substitution class is `[^{}]*`, not `.*`. A greedy `.*` spans from the *first* `{{` to the *last* `}}` on a line, so real shell sitting between two actions (`{{ if x }}v=${1,,}{{ end }}`) is deleted along with them and reaches neither the guard nor ShellCheck — a false all-clear of exactly the shape above.
 
+!!! danger "Two GnuPG installations share one `~/.gnupg`, and the agent is first-come-first-served"
+    GPG Suite installs MacGPG2 2.2 under `/usr/local/MacGPG2`, and Homebrew's `gnupg` 2.5 lands alongside it at `/opt/homebrew/bin/gpg` — **not** because it was ever requested (`installed_on_request: false`), but as a transitive dependency of `gpgme`, `gpgmepp`, and `poppler`. It can't simply be uninstalled, and `brew shellenv` puts it ahead of MacGPG2 on `PATH`.
+
+    Only one `gpg-agent` can own the `~/.gnupg/S.gpg-agent` socket. Whichever starts first wins and then serves **both** frontends — so the terminal and the Finder "Services → Decrypt Selection" menu silently share one daemon whose identity depends on what you ran first that session.
+
+    **Why it bit** (#150): Homebrew's gnupg ships only `pinentry-curses`, and `gpg-agent.conf` had no `pinentry-program` line, so the agent chose a pinentry off its own `PATH`. When the Homebrew agent won the socket, GUI decryption got a *terminal* passphrase prompt with no terminal to draw in. GPG Services surfaced only `Decryption failed code = 152` — `GPG_ERR_DECRYPT_FAILED`, libgpg-error's catch-all, which named neither the agent nor the pinentry. The keyring, the secret key, and the message were all fine.
+
+    **The fix**: `private_dot_gnupg/private_gpg-agent.conf` pins `pinentry-program` to GPG Suite's `pinentry-mac`. Both agents read the same config file, so the outcome no longer depends on which one won. `pinentry-mac` also reaches the macOS Keychain for a saved passphrase, which `pinentry-curses` can never do.
+
+    **Diagnosing the next one**: stderr says only "decryption failed". Use `--status-fd` for the machine-readable stream, which names the pinentry that launched and the key considered:
+
+    ```bash
+    gpg --batch --status-fd 2 --decrypt msg.asc 2>&1 >/dev/null | grep -E 'PINENTRY_LAUNCHED|NO_SECKEY'
+    ```
+
+    A healthy GUI-capable agent reports `PINENTRY_LAUNCHED … mac`; `… curses` is the broken state. Confirm which agent holds the socket with `lsof -p "$(pgrep -x gpg-agent)" | awk '$4=="txt"'` — the version handshake (`gpg-connect-agent 'GETINFO version' /bye`) tells you the same thing faster.
+
+    **Related**: `dot_gitconfig.tmpl` pins `gpg.program` to the MacGPG2 path by `stat`, not `lookPath`, for the same underlying reason — a render-time `PATH` lookup baked in whichever gpg happened to be first and produced phantom drift.
+
 ## CLI / workflow traps
 
 !!! warning "`gh pr merge --rebase` is disabled at the repo level"

@@ -222,6 +222,31 @@ See [Branch protection](runbooks/branch-protection.md).
 
 **Fix**: Run `chezmoi state delete-bucket --bucket=scriptState` to wipe the state DB and re-run. **This is destructive** — re-runs every `run_once_*` again.
 
+## GPG problems
+
+### GPG Services "Decrypt Selection" fails with `Decryption failed code = 152`
+
+**Cause**: 152 is `GPG_ERR_DECRYPT_FAILED` — libgpg-error's catch-all, so it names nothing useful. The usual cause on this machine is **not** a missing or expired key: it's that Homebrew's `gnupg` 2.5 (a transitive dependency of `gpgme`/`gpgmepp`/`poppler`, ahead of MacGPG2 on `PATH`) started `gpg-agent` first and claimed `~/.gnupg/S.gpg-agent`. That agent serves the GUI service too, and Homebrew ships only `pinentry-curses` — so the GUI decrypt is handed a terminal prompt with no terminal.
+
+**Fix**: `~/.gnupg/gpg-agent.conf` should pin the GUI pinentry. It is chezmoi-managed, so restore it from source rather than editing `$HOME`:
+
+```bash
+chezmoi diff ~/.gnupg/gpg-agent.conf
+chezmoi apply ~/.gnupg/gpg-agent.conf
+gpgconf --kill gpg-agent   # respawns on next use with the new config
+```
+
+**Confirm the fix**: stderr only ever says "decryption failed"; the `--status-fd` stream names the pinentry that actually launched.
+
+```bash
+gpg --batch --status-fd 2 --decrypt msg.asc 2>&1 >/dev/null \
+  | grep -E 'PINENTRY_LAUNCHED|NO_SECKEY|DECRYPTION_(OKAY|FAILED)'
+```
+
+`PINENTRY_LAUNCHED … mac` is healthy; `… curses` is the broken state. A genuine `NO_SECKEY` means the key really is absent — a different problem.
+
+See [Gotchas → Two GnuPG installations share one `~/.gnupg`](gotchas.md#macos-specific-traps).
+
 ## See also
 
 - [Recover from drift](runbooks/recover-from-drift.md)
