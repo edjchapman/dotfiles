@@ -100,7 +100,7 @@ The cache state file (`~/.cache/chezmoi-drift/state`) breaks down as:
 | `DEFAULTS_DRIFT` | N macOS settings diverge from `run_onchange_03-macos-defaults.sh`. | `chezmoi-defaults-audit --apply` re-asserts source values (useful after a macOS upgrade reset settings). |
 | `SECURITY_DRIFT` | N security baseline checks failed. | See "Security audit findings" above. |
 | `HAD_ERROR=1` | A check could not be run. Counts may be incomplete. | Re-run `chezmoi-drift-check --full` directly to see the underlying error; common causes are a broken `Brewfile.tmpl` or a missing age key. |
-| `BREWUP_FAILED=1` | The last daily `brewup` run failed and has stayed failed. Not drift — a maintenance outage. | `brewlog` to read the output; re-run `brewup` once fixed, which clears the marker. |
+| `BREWUP_FAILED=1` | The last daily `brewup` run failed and has stayed failed. Not drift — a maintenance outage. The marker file behind it (`~/.cache/brewup.failed`) is written by `brewup()` and read by both helpers; all three take its path from `~/.local/lib/brewup-paths.sh`. | `brewlog` to read the output; re-run `brewup` once fixed, which clears the marker. |
 | `BREW_EXTRA_NAMES` | Space-separated names behind `BREW_EXTRA`, so `mac` can offer per-package adopt/uninstall without re-running brew. | Not actionable on its own. |
 | `CHECKED_AT` | Unix timestamp of the write. Drives the 4h cache TTL and the banner's "(as of Nh ago)" suffix. | Not actionable on its own. |
 

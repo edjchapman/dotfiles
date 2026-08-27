@@ -68,6 +68,20 @@ teardown() {
     [[ "$output" == *"2026-08-11 14:34:58"* ]]
 }
 
+@test "a path edit in the shared file reaches the chezmoi-fix reader" {
+    # The third consumer of the shared brewup paths. Relocate the marker and
+    # the recorded failure time is only reachable if chezmoi-fix followed the
+    # shared file rather than its own hardcoded default.
+    write_state brewup=1 summary='drift: clean'
+    mkdir -p "$TMPHOME/.local/lib" "$TMPHOME/.cache"
+    cat >"$TMPHOME/.local/lib/brewup-paths.sh" <<'EOF'
+BREWUP_FAIL="$HOME/.cache/relocated-brewup.failed"
+EOF
+    echo "2026-08-11 14:34:58" >"$TMPHOME/.cache/relocated-brewup.failed"
+    HOME="$TMPHOME" run "$FIX"
+    [[ "$output" == *"2026-08-11 14:34:58"* ]]
+}
+
 @test "clean state with no brewup failure still exits quietly" {
     write_state brewup=0 summary='drift: clean'
     HOME="$TMPHOME" run "$FIX"

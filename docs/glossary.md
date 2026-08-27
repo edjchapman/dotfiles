@@ -113,5 +113,8 @@ chezmoi-security-audit
 `~/.cache/brewup.log`
 :   Plain-text output of the daily `brewup` run (last ~2000 lines), tailed by `brewlog`. Unrelated to the brew inbox journal above — despite the similar name, no events are recorded here.
 
+`~/.local/lib/brewup-paths.sh`
+:   The one definition of the four `brewup` cache paths (daily stamp, failure marker, log, lock). Sourced by `brewup()` in `~/.zshrc`, which writes them, and by `chezmoi-drift-check` and `chezmoi-fix`, which read the failure marker. POSIX `sh` so all three can source it; deliberately `$HOME/.cache`-based rather than XDG-aware, because the writer is.
+
 `/Users/ed/.local/share/chezmoi`
 :   This repo. The chezmoi source tree.

@@ -104,10 +104,22 @@ export HOMEBREW_NO_ENV_HINTS=1
 
 # Homebrew maintenance paths. Defined ahead of brewup() so the function can own
 # its own failure-marker bookkeeping.
-BREWUP_STAMP="$HOME/.cache/brewup.last"
-BREWUP_FAIL="$HOME/.cache/brewup.failed"
-BREWUP_LOG="$HOME/.cache/brewup.log"
-BREWUP_LOCK="$HOME/.cache/brewup.lock"
+#
+# The values live in ~/.local/lib/brewup-paths.sh rather than here: chezmoi-fix
+# and chezmoi-drift-check both read the failure marker, and neither can source
+# a zsh startup file. Editing a path there moves it for the writer and both
+# readers at once — editing it in one place alone used to stop the signal
+# flowing with no error anywhere.
+#
+# Sourcing is optional: this runs on every shell start, and a fresh or
+# partially-applied $HOME has no such file yet. The defaults below mirror it
+# exactly, so that case keeps working instead of breaking the shell.
+# shellcheck disable=SC1090
+[[ -r "$HOME/.local/lib/brewup-paths.sh" ]] && source "$HOME/.local/lib/brewup-paths.sh"
+: "${BREWUP_STAMP:=$HOME/.cache/brewup.last}"
+: "${BREWUP_FAIL:=$HOME/.cache/brewup.failed}"
+: "${BREWUP_LOG:=$HOME/.cache/brewup.log}"
+: "${BREWUP_LOCK:=$HOME/.cache/brewup.lock}"
 mkdir -p "$HOME/.cache"
 
 # Homebrew daily maintenance: upgrade, sanity-check, cleanup.
@@ -126,8 +138,9 @@ brewup() {
   emulate -L zsh
   setopt pipefail
   local rc=0
-  # Default mirrors the assignment above so the function stays correct if it is
-  # ever called before/without that block (e.g. sourced in isolation).
+  # Default mirrors ~/.local/lib/brewup-paths.sh so the function stays correct
+  # if it is ever called before/without the block above (e.g. sourced in
+  # isolation, which is how the bats suite drives it).
   local marker="${BREWUP_FAIL:-$HOME/.cache/brewup.failed}"
 
   print -P "\n%F{cyan}==> brew upgrade%f"

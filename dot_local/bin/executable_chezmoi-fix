@@ -52,7 +52,7 @@ run_then_refresh() {
 # cask staging dir, a tap fetch error, a full disk) have no safe generic
 # remedy, so the useful move is to show the tail and let the user decide.
 brewup_failed_notice() {
-    local marker="$HOME/.cache/brewup.failed"
+    local marker="${BREWUP_FAIL:-$HOME/.cache/brewup.failed}"
     local when=
     [[ -f $marker ]] && when=$(<"$marker")
     echo "   brewup: last daily run FAILED${when:+ (${when})}"
@@ -80,6 +80,15 @@ TTY=/dev/tty
 if ((TEST_MODE == 0)); then
     [[ -r $TTY && -w $TTY ]] || die "no tty available; chezmoi-fix is interactive"
 fi
+
+# The brewup failure marker brewup_failed_notice reports on. Shared with the
+# zsh writer and chezmoi-drift-check so a path edit reaches all three; optional
+# and failure-tolerated, with a fallback matching the shared file's own default,
+# so a fresh or partially-applied $HOME still behaves as it does today.
+# Deliberately $HOME/.cache and not $XDG_CACHE_HOME, unlike the two paths below
+# — see the comment in the shared file for why.
+# shellcheck disable=SC1090,SC1091
+[[ -r "$HOME/.local/lib/brewup-paths.sh" ]] && . "$HOME/.local/lib/brewup-paths.sh"
 
 DRIFT_STATE="${XDG_CACHE_HOME:-$HOME/.cache}/chezmoi-drift/state"
 INBOX_JOURNAL="${XDG_CACHE_HOME:-$HOME/.cache}/chezmoi-brew-inbox/journal.ndjson"
