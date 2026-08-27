@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for chezmoi-brew-sync: the apply_add insert positions (including the
 # insert-past-EOF case that silently dropped entries) and the Brewfile.tmpl
-# cleanliness gate. apply_add/rescan_sections are extracted with sed and driven
+# cleanliness gate. apply_add/scan_sections are extracted with sed and driven
 # directly — same pattern drift-check.bats uses for brewup() — so no journal,
 # TTY, or interactive loop is needed for the insert tests.
 
@@ -23,9 +23,9 @@ setup() {
     # extraction (renamed function, moved anchor) — that would make every
     # assertion below vacuously pass against an empty file.
     sed -n '/^apply_add()/,/^}/p' "$SYNC" >"$TMPHOME/fns.bash"
-    sed -n '/^rescan_sections()/,/^}/p' "$SYNC" >>"$TMPHOME/fns.bash"
+    sed -n '/^scan_sections()/,/^}/p' "$SYNC" >>"$TMPHOME/fns.bash"
     grep -q 'apply_add()' "$TMPHOME/fns.bash"
-    grep -q 'rescan_sections()' "$TMPHOME/fns.bash"
+    grep -q 'scan_sections()' "$TMPHOME/fns.bash"
 
     # Driver: initialise section state from the work file, run one add, print
     # the result. Mirrors the call environment apply_add has in the script.
@@ -37,12 +37,23 @@ line=\$3
 sect_idx=\$4
 wrap=\$5
 source "$TMPHOME/fns.bash"
-SECTION_NAMES=()
-SECTION_LINES=()
-SECTION_COND=()
-rescan_sections
+scan_sections "\$WORK"
 apply_add "\$kind" "\$line" "\$sect_idx" "\$wrap"
 cat "\$WORK"
+EOF
+
+    # Second driver: scan_sections alone, against each file it is handed, one
+    # summary line per scan. BREWFILE is deliberately left unset — before the
+    # dedup this scan existed twice, and the copy that ran first read $BREWFILE
+    # directly, so a regression to that shape fails here under `set -u` instead
+    # of silently scanning the wrong file.
+    cat >"$TMPHOME/scan.bash" <<EOF
+set -uo pipefail
+source "$TMPHOME/fns.bash"
+for f in "\$@"; do
+    scan_sections "\$f"
+    printf '%s|%s|%s\\n' "\${SECTION_NAMES[*]:-}" "\${SECTION_LINES[*]:-}" "\${SECTION_COND[*]:-}"
+done
 EOF
 }
 
@@ -52,6 +63,23 @@ teardown() {
 
 drive() { # <workfile> <kind> <line> <sect_idx> <wrap>
     run bash "$TMPHOME/driver.bash" "$@"
+}
+
+@test "scan_sections reads whichever file it is handed" {
+    # The proof that the two former copies are one: apply_add drives this same
+    # function against $WORK (the four tests below), while here it is driven
+    # against arbitrary files. Scanning three in a row also pins the reset —
+    # a shared function that appended to the section arrays instead of clearing
+    # them would leak the first file's headers into the second's insert points.
+    printf '# CLI Tools\nbrew "bat"\n' >"$TMPHOME/a"
+    printf '# Desktop Apps\ncask "anki"\n\n# Mac App Store\nmas "Bear", id: 1\n' >"$TMPHOME/b"
+    printf '{{ if eq .machine_type "personal" -}}\n# Games\ncask "steam"\n{{ end -}}\n' >"$TMPHOME/c"
+    run bash "$TMPHOME/scan.bash" "$TMPHOME/a" "$TMPHOME/b" "$TMPHOME/c"
+    [ "$status" -eq 0 ]
+    [ "$(sed -n 1p <<<"$output")" = 'CLI Tools|1|0' ]
+    [ "$(sed -n 2p <<<"$output")" = 'Desktop Apps Mac App Store|1 4|0 0' ]
+    # Inside a {{ if }} block: header on line 2, flagged conditional.
+    [ "$(sed -n 3p <<<"$output")" = 'Games|2|1' ]
 }
 
 @test "add whose position is past EOF is appended, not dropped" {

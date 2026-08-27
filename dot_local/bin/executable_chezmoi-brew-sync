@@ -170,41 +170,48 @@ if ((${#ACTIONS[@]} == 0)); then
 fi
 
 # ------------------------------------------------------------------------------
-# Section discovery. Walks Brewfile.tmpl once, records:
+# Section discovery. Walks a Brewfile-shaped file once, recording per section:
 #   index | name | header_line | in_conditional (1 inside any {{ if ... }} block)
+# into SECTION_NAMES / SECTION_LINES / SECTION_COND, which the section prompt
+# and apply_add read. Run against $BREWFILE up front, and again against $WORK
+# after each add, whose insert shifts every header line below it.
 # ------------------------------------------------------------------------------
-SECTION_NAMES=()
-SECTION_LINES=()
-SECTION_COND=()
-
-while IFS=$'\t' read -r idx hdr_line cond name; do
-    [[ -z $idx ]] && continue
-    SECTION_NAMES+=("$name")
-    SECTION_LINES+=("$hdr_line")
-    SECTION_COND+=("$cond")
-done < <(awk '
-    BEGIN { depth=0; idx=0; pending_name=""; pending_line=0; pending_cond=0; has_entry=0 }
-    /^\{\{[[:space:]]*if[[:space:]]/      { depth++ }
-    /^\{\{[[:space:]]*end[[:space:]]*-?}}/ { if (depth>0) depth-- }
-    /^#[[:space:]]+/ {
-        # Buffer this header; emit only when the section actually contains an entry.
-        # That suppresses pure-comment file preambles like "# Homebrew Bundle".
-        name = $0
-        sub(/^#[[:space:]]+/, "", name)
-        pending_name = name
-        pending_line = NR
-        pending_cond = (depth>0) ? 1 : 0
-        has_entry = 0
-        next
-    }
-    /^[[:space:]]*(brew|cask|tap|mas|vscode)[[:space:]]+"/ {
-        if (pending_name != "" && !has_entry) {
-            idx++
-            printf "%d\t%d\t%d\t%s\n", idx, pending_line, pending_cond, pending_name
-            has_entry = 1
+scan_sections() {
+    local file=$1
+    SECTION_NAMES=()
+    SECTION_LINES=()
+    SECTION_COND=()
+    while IFS=$'\t' read -r idx hdr_line cond name; do
+        [[ -z $idx ]] && continue
+        SECTION_NAMES+=("$name")
+        SECTION_LINES+=("$hdr_line")
+        SECTION_COND+=("$cond")
+    done < <(awk '
+        BEGIN { depth=0; idx=0; pending_name=""; pending_line=0; pending_cond=0; has_entry=0 }
+        /^\{\{[[:space:]]*if[[:space:]]/      { depth++ }
+        /^\{\{[[:space:]]*end[[:space:]]*-?}}/ { if (depth>0) depth-- }
+        /^#[[:space:]]+/ {
+            # Buffer this header; emit only when the section actually contains an entry.
+            # That suppresses pure-comment file preambles like "# Homebrew Bundle".
+            name = $0
+            sub(/^#[[:space:]]+/, "", name)
+            pending_name = name
+            pending_line = NR
+            pending_cond = (depth>0) ? 1 : 0
+            has_entry = 0
+            next
         }
-    }
-' "$BREWFILE")
+        /^[[:space:]]*(brew|cask|tap|mas|vscode)[[:space:]]+"/ {
+            if (pending_name != "" && !has_entry) {
+                idx++
+                printf "%d\t%d\t%d\t%s\n", idx, pending_line, pending_cond, pending_name
+                has_entry = 1
+            }
+        }
+    ' "$file")
+}
+
+scan_sections "$BREWFILE"
 
 if ((${#SECTION_NAMES[@]} == 0)); then
     die "could not detect any '# ' section headers in Brewfile.tmpl"
@@ -506,41 +513,7 @@ apply_add() {
 
     mv "$tmp" "$WORK"
     # Section lines after this one have shifted; recompute on the fly next time.
-    rescan_sections
-}
-
-rescan_sections() {
-    local i=0
-    SECTION_NAMES=()
-    SECTION_LINES=()
-    SECTION_COND=()
-    while IFS=$'\t' read -r idx hdr_line cond name; do
-        [[ -z $idx ]] && continue
-        SECTION_NAMES+=("$name")
-        SECTION_LINES+=("$hdr_line")
-        SECTION_COND+=("$cond")
-        i=$((i + 1))
-    done < <(awk '
-        BEGIN { depth=0; idx=0; pending_name=""; pending_line=0; pending_cond=0; has_entry=0 }
-        /^\{\{[[:space:]]*if[[:space:]]/      { depth++ }
-        /^\{\{[[:space:]]*end[[:space:]]*-?}}/ { if (depth>0) depth-- }
-        /^#[[:space:]]+/ {
-            name = $0
-            sub(/^#[[:space:]]+/, "", name)
-            pending_name = name
-            pending_line = NR
-            pending_cond = (depth>0) ? 1 : 0
-            has_entry = 0
-            next
-        }
-        /^[[:space:]]*(brew|cask|tap|mas|vscode)[[:space:]]+"/ {
-            if (pending_name != "" && !has_entry) {
-                idx++
-                printf "%d\t%d\t%d\t%s\n", idx, pending_line, pending_cond, pending_name
-                has_entry = 1
-            }
-        }
-    ' "$WORK")
+    scan_sections "$WORK"
 }
 
 # Apply removes first so insert positions are stable per-add.
@@ -548,7 +521,7 @@ for entry in "${PLAN[@]}"; do
     IFS=$'\t' read -r op kind name args sect_idx wrap line <<<"$entry"
     [[ $op == "remove" ]] && apply_remove "$kind" "$name"
 done
-rescan_sections
+scan_sections "$WORK"
 for entry in "${PLAN[@]}"; do
     IFS=$'\t' read -r op kind name args sect_idx wrap line <<<"$entry"
     [[ $op == "add" ]] && apply_add "$kind" "$line" "$sect_idx" "$wrap"
