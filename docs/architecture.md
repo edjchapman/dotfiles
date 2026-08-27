@@ -147,6 +147,8 @@ Three signals continuously check `$HOME` against the source state. All three fee
 === "Brew wrapper"
     A shell function wrapper around `brew` appends an NDJSON event to the brew-inbox journal (`~/.cache/chezmoi-brew-inbox/journal.ndjson`) on every `install/uninstall/tap/untap`, so the next `chezmoi-brew-sync` knows what to merge into `Brewfile.tmpl`. This is a different file from `~/.cache/brewup.log`, which is the plain-text output of the daily `brewup` run.
 
+A fourth signal rides the same cache without being drift: the daily `brewup` run leaves `~/.cache/brewup.failed` behind when it fails, which raises a `brewup-failed` banner segment and a failure notice in `mac`. Writer and readers span three languages — `brewup()` is irreducibly zsh, both helpers are standalone bash on `PATH` — so the path itself lives in a POSIX-`sh` file, `~/.local/lib/brewup-paths.sh`, that all three source. Editing a path there moves it for everyone; editing it in one consumer alone used to stop the signal with no error anywhere.
+
 Together: drift becomes *visible* in seconds and *fixable* with one command. See [Recover from drift](runbooks/recover-from-drift.md) for the per-signal remediation matrix.
 
 ## Where the system enforces correctness

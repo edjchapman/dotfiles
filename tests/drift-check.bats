@@ -9,7 +9,7 @@ setup() {
     REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
     DRIFT_CHECK="$REPO_ROOT/dot_local/bin/executable_chezmoi-drift-check"
     ZSHRC="$REPO_ROOT/dot_zshrc"
-    CHEZMOI_FIX="$REPO_ROOT/dot_local/bin/executable_chezmoi-fix"
+    SHARED_PATHS="$REPO_ROOT/dot_local/lib/brewup-paths.sh"
 
     TMPHOME="$(mktemp -d)"
     export HOME="$TMPHOME/home"
@@ -92,6 +92,35 @@ extract_banner_block() {
     printf '#!/bin/sh\nexit 0\n' >"$TMPHOME/bin/chezmoi-drift-check"
     chmod +x "$TMPHOME/bin/chezmoi-drift-check"
     export PATH="$TMPHOME/bin:/usr/bin:/bin"
+}
+
+# Stage a shared brewup-paths file that relocates every path away from its
+# default. Any component that still hardcodes the default silently misses it,
+# which is exactly the desync the sharing exists to prevent — so the tests
+# below can assert on the relocated paths and mean it.
+stage_relocated_paths() {
+    mkdir -p "$HOME/.local/lib"
+    cat >"$HOME/.local/lib/brewup-paths.sh" <<'EOF'
+BREWUP_STAMP="$HOME/.cache/relocated-brewup.last"
+BREWUP_FAIL="$HOME/.cache/relocated-brewup.failed"
+BREWUP_LOG="$HOME/.cache/relocated-brewup.log"
+BREWUP_LOCK="$HOME/.cache/relocated-brewup.lock"
+EOF
+}
+
+# Extract the brewup path block together with brewup() itself. The two must be
+# taken as a unit: the paths block is what sources the shared file, and the
+# function reads the variables it leaves behind.
+extract_brewup_block() {
+    sed -n '/^# Homebrew maintenance paths/,/^}$/p' "$ZSHRC" >"$TMPHOME/brewup.zsh"
+    [ -s "$TMPHOME/brewup.zsh" ]
+    grep -q '^brewup()' "$TMPHOME/brewup.zsh"
+}
+
+# A brew stub whose `upgrade` fails, so brewup() takes its marker-writing path.
+stub_failing_brew() {
+    printf '#!/bin/sh\n[ "$1" = "upgrade" ] && exit 1\nexit 0\n' >"$TMPHOME/bin/brew"
+    chmod +x "$TMPHOME/bin/brew"
 }
 
 @test "modern block output: counts package names, not header lines" {
@@ -369,17 +398,69 @@ EOF
     [[ "$output" == *"home 4"* ]]
 }
 
-@test "brewup marker path agrees across writer and both readers" {
-    # dot_zshrc writes the marker; drift-check and chezmoi-fix read it. These
-    # live in three separate files with no shared constant, so a path edit in
-    # one is silently a no-op signal. Pin the literal in all three.
-    local marker='$HOME/.cache/brewup.failed'
-    run grep -F -- "$marker" "$ZSHRC"
+@test "the shared brewup paths file is sourceable by POSIX sh" {
+    # It is sourced by a zsh startup file and two bash executables, so it may
+    # use nothing beyond plain POSIX assignments.
+    run sh -c ". '$SHARED_PATHS' >/dev/null; printf '%s\n' \"\$BREWUP_STAMP\" \"\$BREWUP_FAIL\" \"\$BREWUP_LOG\" \"\$BREWUP_LOCK\""
     [ "$status" -eq 0 ]
-    run grep -F -- "$marker" "$DRIFT_CHECK"
+    [ "${lines[0]}" = "$HOME/.cache/brewup.last" ]
+    [ "${lines[1]}" = "$HOME/.cache/brewup.failed" ]
+    [ "${lines[2]}" = "$HOME/.cache/brewup.log" ]
+    [ "${lines[3]}" = "$HOME/.cache/brewup.lock" ]
+}
+
+@test "shared brewup paths ignore XDG_CACHE_HOME" {
+    # Deliberate asymmetry, not an oversight: the drift state file is XDG-aware
+    # but the brewup files are not, because every writer hardcodes $HOME/.cache.
+    # Honouring XDG here would point the readers at a path nothing ever writes.
+    # $XDG_CACHE_HOME is already set to a directory that is not $HOME/.cache.
+    [ "$XDG_CACHE_HOME" != "$HOME/.cache" ]
+    run sh -c ". '$SHARED_PATHS' >/dev/null; printf '%s\n' \"\$BREWUP_FAIL\""
+    [ "$output" = "$HOME/.cache/brewup.failed" ]
+}
+
+@test "a path edit in the shared file reaches the brewup writer" {
+    # Replaces the grep that pinned the marker literal in three files. That
+    # test could only prove the literals matched today; this one proves the
+    # sharing holds, by moving the path and watching the writer follow.
+    command -v zsh >/dev/null || skip "zsh not available"
+    stage_relocated_paths
+    extract_brewup_block
+    stub_failing_brew
+
+    run env PATH="$TMPHOME/bin:/usr/bin:/bin" zsh -c "source '$TMPHOME/brewup.zsh'; brewup"
+    [ "$status" -ne 0 ]
+    [ -f "$HOME/.cache/relocated-brewup.failed" ]
+    [ ! -f "$HOME/.cache/brewup.failed" ]
+}
+
+@test "a path edit in the shared file reaches the drift-check reader" {
+    stage_relocated_paths
+    make_stubs
+    printf '2026-08-14 09:00:00\n' >"$HOME/.cache/relocated-brewup.failed"
+
+    run "$DRIFT_CHECK" --full --quiet
+    # shellcheck disable=SC1090
+    . "$STATE"
+    [ "$BREWUP_FAILED" -eq 1 ]
+    [[ "$banner" == *"brewup-failed"* ]]
+}
+
+@test "brewup paths fall back to their defaults when the shared file is absent" {
+    # A fresh machine, or a $HOME mid-apply, has no shared file yet. Shell
+    # startup must survive that, and the fallbacks must reproduce exactly what
+    # the shared file would have said — the other readers' fallbacks are pinned
+    # the same way by the marker tests that run without the file staged.
+    command -v zsh >/dev/null || skip "zsh not available"
+    [ ! -e "$HOME/.local/lib/brewup-paths.sh" ]
+    extract_brewup_block
+
+    run zsh -c "source '$TMPHOME/brewup.zsh'; printf '%s\n' \"\$BREWUP_STAMP\" \"\$BREWUP_FAIL\" \"\$BREWUP_LOG\" \"\$BREWUP_LOCK\""
     [ "$status" -eq 0 ]
-    run grep -F -- "$marker" "$CHEZMOI_FIX"
-    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "$HOME/.cache/brewup.last" ]
+    [ "${lines[1]}" = "$HOME/.cache/brewup.failed" ]
+    [ "${lines[2]}" = "$HOME/.cache/brewup.log" ]
+    [ "${lines[3]}" = "$HOME/.cache/brewup.lock" ]
 }
 
 @test "brewup daily stamp is written unconditionally" {

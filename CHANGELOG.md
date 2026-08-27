@@ -10,6 +10,7 @@ All notable changes to this repo are recorded here. Format follows [Keep a Chang
 
 ### Changed
 
+- The four `brewup` cache paths (daily stamp, failure marker, log, lock) now have a single definition in `~/.local/lib/brewup-paths.sh`, sourced by the zsh writer and by both bash readers (`chezmoi-drift-check`, `chezmoi-fix`). The failure-marker path was previously a literal in all three, where a path edit in any one of them silently stopped the signal flowing with no error. The bats test that compensated by pinning the literal across the three files is replaced by tests that relocate the path and assert each consumer follows it. No observable change: banner segments, failure notice, stamp semantics and the marker lifecycle are unchanged. ([#152](https://github.com/edjchapman/Dotfiles/issues/152))
 - Standups now deliver to the pinned GitHub issue [#114](https://github.com/edjchapman/Dotfiles/issues/114) instead of committed `standups/*.md` files, matching the `claude-code-config` tracking-issue pattern. The existing daily logs were migrated as comments before removal.
 
 ### Removed

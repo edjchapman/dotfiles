@@ -6,7 +6,7 @@
 #   - $HOME files chezmoi manages (via `chezmoi status --exclude=externals`)
 #   - Brewfile.tmpl: missing entries (`brew bundle check`),
 #     extras (`brew bundle cleanup` dry-run)
-#   - Daily `brewup` outcome (marker file written by the dot_zshrc runner).
+#   - Daily `brewup` outcome (marker file written by brewup() in dot_zshrc).
 #     Not drift as such, but a maintenance outage that is otherwise invisible
 #     unless someone reads ~/.cache/brewup.log by hand.
 #
@@ -29,11 +29,21 @@ set -uo pipefail
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/chezmoi-drift"
 STATE_FILE="$CACHE_DIR/state"
-# Written by the daily brewup runner in dot_zshrc: present => last run failed.
+# Written by brewup() in dot_zshrc: present => the last run failed. The path
+# comes from the definitions file that same writer sources, so moving it there
+# moves it for writer and readers together.
+#
+# Optional, and failure tolerated — the same shape as the state file sourced
+# further down. This script runs from shell startup, so a fresh or
+# partially-applied $HOME must degrade rather than fail; the fallback below
+# mirrors the shared file's own default.
+#
 # Deliberately $HOME/.cache and not $XDG_CACHE_HOME: the writer hardcodes that
 # path for every brewup file (stamp/log/lock), so honouring XDG here would read
 # a path nothing ever writes the moment XDG_CACHE_HOME is set.
-BREWUP_FAIL_MARKER="$HOME/.cache/brewup.failed"
+# shellcheck disable=SC1090,SC1091
+[[ -r "$HOME/.local/lib/brewup-paths.sh" ]] && . "$HOME/.local/lib/brewup-paths.sh"
+BREWUP_FAIL_MARKER="${BREWUP_FAIL:-$HOME/.cache/brewup.failed}"
 TTL="${CHEZMOI_DRIFT_TTL:-14400}"
 MODE=brief
 NOTIFY=0
@@ -286,9 +296,9 @@ if command -v chezmoi-security-audit >/dev/null 2>&1; then
     fi
 fi
 
-# Daily brewup outcome. Presence of the marker means the last run failed; the
-# runner removes it on success. Purely a file test — never shells out to brew,
-# so this stays cheap enough for the shell-startup path.
+# Daily brewup outcome. Presence of the marker means the last run failed;
+# brewup() removes it on the next success. Purely a file test — never shells
+# out to brew, so this stays cheap enough for the shell-startup path.
 BREWUP_FAILED=0
 [[ -f $BREWUP_FAIL_MARKER ]] && BREWUP_FAILED=1
 
