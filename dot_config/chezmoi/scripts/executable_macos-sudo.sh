@@ -111,6 +111,54 @@ sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdate
 sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall -bool true
 
 # =============================================================================
+# Google Chrome updater — remove Keystone
+# =============================================================================
+
+# Chrome ships its own updater (Keystone), which replaces /Applications/Google
+# Chrome.app in place as root. The Brewfile installs Chrome as a cask, so both
+# wanted to own the installed version: Homebrew's metadata went stale, then
+# `brew upgrade` aborted with "there is already an App at ..." and that failure
+# propagated out through `brew bundle`. Homebrew is the single source of truth
+# for package versions on this machine, so the out-of-band updater goes.
+#
+# run_onchange_03-macos-defaults.sh sets KeystoneRegistrationDisabled as the
+# user, and that is what stops Chrome re-registering — without it the next
+# launch reinstalls everything removed below. It runs first: this script is
+# run_once_after_05, ordered last.
+#
+# Paths are named one by one rather than globbed on purpose: /Library/Google
+# also holds DriveFS and Chrome's managed-policy directory, which must survive.
+
+for plist in \
+    /Library/LaunchAgents/com.google.keystone.agent.plist \
+    /Library/LaunchAgents/com.google.keystone.xpcservice.plist; do
+    [[ -e $plist ]] || continue
+    # Agents live in the per-user GUI domain, not the system one. bootout fails
+    # when the job was never loaded, which is not an error here.
+    launchctl bootout "gui/$(id -u)" "$plist" 2>/dev/null || true
+    sudo rm -f "$plist"
+done
+
+for plist in \
+    /Library/LaunchDaemons/com.google.keystone.daemon.plist \
+    /Library/LaunchDaemons/com.google.GoogleUpdater.wake.system.plist; do
+    [[ -e $plist ]] || continue
+    sudo launchctl bootout system "$plist" 2>/dev/null || true
+    sudo rm -f "$plist"
+done
+
+# Keystone's own uninstaller while the bundle is still there, then the payload
+# and both ticket stores — the system one and the per-user one.
+ks_install=/Library/Google/GoogleSoftwareUpdate/GoogleSoftwareUpdate.bundle/Contents/Helpers/ksinstall
+if [[ -x $ks_install ]]; then
+    sudo "$ks_install" --nuke 2>/dev/null || true
+fi
+sudo rm -rf /Library/Google/GoogleSoftwareUpdate
+rm -rf "$HOME/Library/Google/GoogleSoftwareUpdate"
+
+echo "Chrome: Keystone removed — Homebrew owns the version from here."
+
+# =============================================================================
 # Analytics & telemetry
 # =============================================================================
 
