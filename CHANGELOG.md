@@ -19,6 +19,7 @@ All notable changes to this repo are recorded here. Format follows [Keep a Chang
 
 ### Fixed
 
+- The global `git` pre-commit hook (`dot_config/git/hooks/executable_pre-commit`) reported every non-zero `ggshield` exit as "detected secrets in your commit". Only exit 1 means that: 3 is an auth failure, 4 an unreachable API, and 128 the catch-all an exhausted GitGuardian quota raises — the common case, since the 10,000-call budget is a rolling 30-day window shared by every repo on the machine and recovers only as old usage ages out. Misreporting it as a detection sent sanitisation work at files that were never dirty. Non-detection exits now state that the scan did not run, name the failure class, and print `ggshield quota` inline for 128. The commit stays blocked either way: a scan that did not run is not a scan that passed.
 - GUI decryption (Finder "Services → Decrypt Selection") failed with `Decryption failed code = 152`. `~/.gnupg/gpg-agent.conf` is now chezmoi-managed (`private_dot_gnupg/private_gpg-agent.conf`) and pins `pinentry-program` to GPG Suite's `pinentry-mac`. Homebrew's `gnupg` 2.5 — pulled in as a transitive dependency of `gpgme`/`gpgmepp`/`poppler`, not installed on request — takes `PATH` precedence over MacGPG2 and ships only `pinentry-curses`; whichever `gpg-agent` claimed `~/.gnupg/S.gpg-agent` first served both frontends, so a GUI decrypt could be handed a terminal prompt with no terminal. Pinning the pinentry makes the outcome independent of which agent wins the socket.
 
 ### Security
