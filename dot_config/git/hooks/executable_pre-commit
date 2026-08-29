@@ -6,14 +6,37 @@
 # Each tool's exit code is propagated explicitly so we can print a
 # tool-specific recovery hint before exiting; `set -e` would skip the hint.
 
-# Run ggshield if available
+# Run ggshield if available.
+#
+# Only exit code 1 (SCAN_FOUND_PROBLEMS) means a secret was detected. ggshield
+# also exits 3 (auth), 4 (server unreachable) and 128 (catch-all, which is what
+# an exhausted GitGuardian quota raises). Reporting those as "secrets detected"
+# is actively misleading: it sends you sanitising files that were never dirty,
+# and the quota case is the common one — the workspace budget is a rolling
+# 30-day window shared by every repo on the machine.
 if command -v ggshield &>/dev/null; then
     ggshield secret scan pre-commit "$@"
     exit_code=$?
-    if [ $exit_code -ne 0 ]; then
+    if [ $exit_code -eq 1 ]; then
         echo ""
         echo "ggshield detected secrets in your commit. Fix them before committing."
         echo "If this is a false positive, allowlist the secret in .gitguardian.yaml"
+        exit $exit_code
+    elif [ $exit_code -ne 0 ]; then
+        echo ""
+        echo "ggshield could NOT complete the scan (exit ${exit_code})."
+        echo "This is a tool/API failure — NOT a secret detection. Do not sanitise anything."
+        case $exit_code in
+            3) echo "  Authentication failed. Try: ggshield auth login" ;;
+            4) echo "  GitGuardian is unreachable. Check: ggshield api-status" ;;
+            128)
+                echo "  Most likely the workspace API quota is exhausted:"
+                ggshield quota 2>&1 | sed 's/^/    /'
+                echo "  Quota is a rolling 30-day window shared across every repo;"
+                echo "  it recovers as old usage ages out, not by topping up."
+                ;;
+        esac
+        echo "  The commit is blocked because the scan did not run."
         exit $exit_code
     fi
 fi
