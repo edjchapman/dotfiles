@@ -209,6 +209,26 @@ defaults write com.googlecode.iterm2 PrefsCustomFolder -string "$HOME/.config/it
 defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true
 
 # =============================================================================
+# Google Chrome — let Homebrew own the version
+# =============================================================================
+
+# Stop Chrome registering with Google's out-of-band updater (Keystone) at launch.
+# The Brewfile installs Chrome as a cask, so two updaters were claiming the same
+# app: Keystone replaced /Applications/Google Chrome.app in place as root while
+# Homebrew's metadata stayed on the version *it* installed. `brew upgrade` then
+# aborted with "there is already an App at ...", failing `brew bundle` and taking
+# the whole apply down with it.
+#
+# This key only prevents re-registration. Removing an already-installed Keystone
+# needs root and lives in the privileged bootstrap script
+# (dot_config/chezmoi/scripts/executable_macos-sudo.sh). This must be set first,
+# or the next Chrome launch reinstalls what that script removed.
+#
+# Accepted trade-off: Chrome no longer self-updates, so its security fixes arrive
+# via `brew upgrade --cask` — in practice the daily `brewup` task, not same-day.
+defaults write com.google.Chrome KeystoneRegistrationDisabled -bool true
+
+# =============================================================================
 # Restart affected services
 # =============================================================================
 
