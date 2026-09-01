@@ -9,7 +9,7 @@ This repo follows the [`agents.md`](https://agents.md/) convention. The full age
 - Lint/test entry point: `make ci`.
 - Validate template changes: `make verify-templates` (runs the personal/work × arm64/amd64 matrix).
 - Add a secret: `chezmoi add --encrypt <path>`. Plaintext is never acceptable.
-- All commits go through pre-commit hooks (shellcheck, shfmt, yamllint, markdownlint, gitleaks, ggshield).
+- All commits go through pre-commit hooks (shellcheck, shfmt, yamllint, markdownlint, gitleaks); pushes also run a ggshield secret scan via the global pre-push hook.
 - All pushes go via PR. Self-update workflows open **draft** PRs only.
 
 ## Project-scoped Claude Code config

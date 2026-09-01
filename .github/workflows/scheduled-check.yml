@@ -31,7 +31,7 @@ jobs:
             - name: Install linters
               # These are exactly the tools `make ci` invokes: shellcheck (lint),
               # shfmt (fmt-check), bats (test-bats), gitleaks (audit). chezmoi is
-              # installed above; ggshield/brew are optional and skip gracefully.
+              # installed above; brew is optional and skips gracefully.
               run: |
                   sudo apt-get update && sudo apt-get install -y shellcheck bats
                   curl -sS https://webi.sh/shfmt | sh

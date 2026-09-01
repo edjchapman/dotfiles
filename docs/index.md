@@ -19,7 +19,7 @@ Wall-clock time: ~30 minutes, mostly waiting on Homebrew downloads.
 
 - **Matrix-tested templates.** Every `.tmpl` rendered against `personal/work × arm64/amd64` on every commit. Templates that break on one combination fail CI, not next month's reinstall.
 - **Drift detection + `mac`.** Shell banner runs on every new terminal; daily LaunchAgent fires a clickable notification at 09:30; `mac` is the single remediation entry point.
-- **Age-encrypted secrets, draft-PR-only updates.** Secrets live in the repo as `*.age` blobs. Pre-commit hooks (`gitleaks`, `ggshield`) and a monthly full-history audit catch leaks. Self-update workflows open **draft** PRs only.
+- **Age-encrypted secrets, draft-PR-only updates.** Secrets live in the repo as `*.age` blobs. A per-commit `gitleaks` hook, a per-push `ggshield` scan, and a monthly full-history audit catch leaks. Self-update workflows open **draft** PRs only.
 - **Weekly self-update PRs for pinned externals.** `oh-my-zsh` pinned by SHA; weekly workflow checks upstream, bumps the pin, opens a draft PR. (`claude-code-config` is a working clone at `~/Development/claude-code-config`, updated via its own git workflow.)
 - **First-class Claude Code integration.** Project-scoped `.claude/settings.json`, chezmoi-aware subagents, slash commands, path-scoped rule files. `CLAUDE.md` is the full agent brief.
 

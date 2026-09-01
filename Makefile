@@ -63,19 +63,17 @@ verify-templates: ## Render every .tmpl across the full machine_type x arch matr
 	done; \
 	exit $$failed
 
-audit: ## Run secret scans (gitleaks + ggshield) and brew bundle check
+# ggshield is deliberately absent here: `ggshield secret scan repo` bills the
+# shared GitGuardian quota per commit scanned (~417 units on a 996-commit repo,
+# out of a 10,000/30-day budget shared by every repo on this machine), and this
+# target runs via `make ci` before every commit. ggshield coverage comes from
+# the pre-push git hook (incremental, ~1 unit) and GitGuardian's GitHub App.
+audit: ## Run secret scan (gitleaks) and brew bundle check
 	@echo "Running gitleaks..."
 	@if command -v gitleaks >/dev/null 2>&1; then \
 		gitleaks detect --no-banner --source=. --config=.gitleaks.toml; \
 	else \
 		echo "  (gitleaks not installed — skipping)"; \
-	fi
-	@echo ""
-	@echo "Running ggshield..."
-	@if command -v ggshield >/dev/null 2>&1; then \
-		ggshield secret scan repo .; \
-	else \
-		echo "  (ggshield not installed — skipping)"; \
 	fi
 	@echo ""
 	@echo "Running brew bundle check..."

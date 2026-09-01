@@ -75,7 +75,7 @@ A shell-startup banner runs the drift check on every new terminal; a LaunchAgent
 
 ### Age-encrypted secrets, draft-PR-only updates
 
-Secrets live in the repo as `*.age` blobs encrypted to a single recipient. Pre-commit hooks (`gitleaks`, `ggshield`) and a monthly full-history audit catch accidental leaks. Self-update workflows for external pins open **draft** PRs only — nothing auto-merges, nothing auto-applies.
+Secrets live in the repo as `*.age` blobs encrypted to a single recipient. A per-commit `gitleaks` hook, a per-push `ggshield` scan, and a monthly full-history audit catch accidental leaks. Self-update workflows for external pins open **draft** PRs only — nothing auto-merges, nothing auto-applies.
 
 [`docs/runbooks/secret-rotation.md`](docs/runbooks/secret-rotation.md)
 
