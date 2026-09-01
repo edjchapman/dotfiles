@@ -143,7 +143,7 @@ case "$scan" in
         fi
         block "Refusing 'chezmoi add' without --encrypt. If this file contains secrets, re-run with --encrypt. If it is non-secret, ask the user to confirm and run it themselves."
         ;;
-    *"git push"*)
+    *"git push"* | *"git -C "*" push"*)
         # Feature-branch pushes are allowed; force-pushes and pushes to the
         # protected default branch (main/master) are not. permissions.deny only
         # matches command prefixes, so the real parsing lives here. Force detection
@@ -167,8 +167,13 @@ case "$scan" in
         # the full text rather than skipping the checks.
         # tr pads set2 with its last character, so all three separators become
         # newlines from the single '\n'.
+        #
+        # `git -C <path> push` is matched too. The old arm required the literal
+        # substring "git push", so routing a push through -C dodged every check
+        # here — force-push and push-to-main included. Same fail-open shape as
+        # the truncating extractor above.
         push_seg=$(printf '%s' "$scan" | tr ';&|' '\n' \
-            | grep -E '(^|[[:space:]])git[[:space:]]+push([[:space:]]|$)' || true)
+            | grep -E '(^|[[:space:]])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push([[:space:]]|$)' || true)
         if [ -z "$push_seg" ]; then
             push_seg=$scan
         fi
@@ -178,7 +183,46 @@ case "$scan" in
         if printf '%s' "$push_seg" | grep -qE -- '(^|[^A-Za-z0-9_-])(main|master)([^A-Za-z0-9_-]|$)'; then
             block "Refusing to push to main/master. Push a feature branch and open a PR instead."
         fi
-        _branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        # The implicit-push check must consult the repo the push runs in, not
+        # blindly $CLAUDE_PROJECT_DIR: `git -C <elsewhere> push` and
+        # `cd <elsewhere> && git push` are judged by <elsewhere>'s branch, else
+        # a push from another repo's feature branch is refused just because
+        # *this* project sits on main. An explicit -C on the push invocation
+        # wins; otherwise the last `cd` before the push in the same command;
+        # otherwise the project dir. When the resolved token is not usable
+        # (cd -, $(...), a quoted path with spaces), fall back to the project
+        # dir — the pre-fix behavior — which can only over-block.
+        push_dir=$(printf '%s' "$push_seg" \
+            | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:]]+)[[:space:]]+push.*/\1/p' | head -n 1)
+        if [ -z "$push_dir" ]; then
+            push_dir=$(printf '%s' "$scan" | tr ';&|' '\n' | awk '
+                /(^|[[:space:]])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push([[:space:]]|$)/ { exit }
+                match($0, /^[[:space:]]*cd[[:space:]]+/) {
+                    split(substr($0, RSTART + RLENGTH), parts, /[[:space:]]+/)
+                    d = parts[1]
+                }
+                END { print d }')
+        fi
+        push_dir=${push_dir#\"}
+        push_dir=${push_dir%\"}
+        push_dir=${push_dir#\'}
+        push_dir=${push_dir%\'}
+        # shellcheck disable=SC2088  # the tilde is literal text from the
+        # scanned command — no shell ever expanded it, so we must.
+        case "$push_dir" in
+            "~") push_dir=$HOME ;;
+            "~/"*) push_dir="$HOME/${push_dir#\~/}" ;;
+        esac
+        _branch=""
+        if [ -n "$push_dir" ]; then
+            # Cumulative -C: a relative cd path resolves against the project
+            # dir (the shell cwd when the hook's command runs), an absolute
+            # one overrides it — matching what the shell itself would do.
+            _branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" -C "$push_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        fi
+        if [ -z "$_branch" ]; then
+            _branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        fi
         if [ "$_branch" = "main" ] || [ "$_branch" = "master" ]; then
             block "Refusing 'git push' while on '$_branch'. Switch to a feature branch and open a PR."
         fi

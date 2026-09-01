@@ -24,10 +24,19 @@ setup() {
     git -C "$TMPREPO" commit -q --allow-empty -m init
     git -C "$TMPREPO" checkout -q -b feature-x
     export CLAUDE_PROJECT_DIR="$TMPREPO"
+
+    # A second repo, for pushes that target somewhere other than the project
+    # dir (git -C <path> push, cd <path> && git push).
+    OTHERREPO="$(mktemp -d)"
+    git -C "$OTHERREPO" init -q -b main
+    git -C "$OTHERREPO" config user.email test@example.com
+    git -C "$OTHERREPO" config user.name test
+    git -C "$OTHERREPO" commit -q --allow-empty -m init
+    git -C "$OTHERREPO" checkout -q -b other-feature
 }
 
 teardown() {
-    rm -rf "$TMPREPO"
+    rm -rf "$TMPREPO" "$OTHERREPO"
 }
 
 # Feed a command to the hook as a PreToolUse payload; exit 0 = allow, 2 = block.
@@ -297,5 +306,68 @@ guard_raw() {
 @test "blocks an implicit push while on main" {
     git -C "$TMPREPO" checkout -q main
     run guard "git push"
+    [ "$status" -eq 2 ]
+}
+
+# ------------------------------------------------------------------------------
+# Pushes that target a repo other than the project dir. Regression for two
+# defects: `git -C <path> push` dodged the arm entirely (the case pattern
+# required the literal substring "git push" — fail-open, force-push included),
+# and the implicit-branch check always consulted $CLAUDE_PROJECT_DIR, refusing
+# a legitimate feature-branch push in another repo whenever *this* project
+# happened to sit on main.
+# ------------------------------------------------------------------------------
+
+@test "a git -C force-push is still a force-push" {
+    run guard "git -C $OTHERREPO push --force origin other-feature"
+    [ "$status" -eq 2 ]
+}
+
+@test "a git -C push to main is still a push to main" {
+    run guard "git -C $OTHERREPO push origin main"
+    [ "$status" -eq 2 ]
+}
+
+@test "allows a git -C feature push while the project dir is on main" {
+    git -C "$TMPREPO" checkout -q main
+    run guard "git -C $OTHERREPO push -u origin other-feature"
+    [ "$status" -eq 0 ]
+}
+
+@test "allows cd-elsewhere-and-push while the project dir is on main" {
+    git -C "$TMPREPO" checkout -q main
+    run guard "cd $OTHERREPO && git push -u origin other-feature"
+    [ "$status" -eq 0 ]
+}
+
+@test "blocks a git -C implicit push while the target repo is on main" {
+    git -C "$OTHERREPO" checkout -q main
+    run guard "git -C $OTHERREPO push"
+    [ "$status" -eq 2 ]
+}
+
+@test "blocks cd-elsewhere-and-push while the target repo is on main" {
+    git -C "$OTHERREPO" checkout -q main
+    run guard "cd $OTHERREPO && git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "a tilde cd path is expanded before the branch check" {
+    HOME="$(dirname "$OTHERREPO")"
+    export HOME
+    git -C "$OTHERREPO" checkout -q main
+    run guard "cd ~/$(basename "$OTHERREPO") && git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "an unresolvable push dir falls back to the project dir (over-blocks)" {
+    git -C "$TMPREPO" checkout -q main
+    run guard 'cd "$(mktemp -d)" && git push'
+    [ "$status" -eq 2 ]
+}
+
+@test "a cd after the push does not affect the branch check" {
+    git -C "$TMPREPO" checkout -q main
+    run guard "git push && cd $OTHERREPO"
     [ "$status" -eq 2 ]
 }
