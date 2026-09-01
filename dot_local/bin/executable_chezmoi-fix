@@ -76,7 +76,10 @@ if ((TEST_MODE == 0)); then
     command -v chezmoi >/dev/null 2>&1 || die "chezmoi not installed"
 fi
 
-TTY=/dev/tty
+# Interactive input source. Env-overridable (a test seam: bats points it at a
+# fifo to feed menu choices and reach the dispatch layer); unset in normal use,
+# so the default keeps live behaviour identical.
+TTY=${CHEZMOI_FIX_TTY:-/dev/tty}
 if ((TEST_MODE == 0)); then
     [[ -r $TTY && -w $TTY ]] || die "no tty available; chezmoi-fix is interactive"
 fi

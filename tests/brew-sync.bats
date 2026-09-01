@@ -1,9 +1,12 @@
 #!/usr/bin/env bats
 # Tests for chezmoi-brew-sync: the apply_add insert positions (including the
-# insert-past-EOF case that silently dropped entries) and the Brewfile.tmpl
-# cleanliness gate. apply_add/scan_sections are extracted with sed and driven
-# directly — same pattern drift-check.bats uses for brewup() — so no journal,
-# TTY, or interactive loop is needed for the insert tests.
+# insert-past-EOF case that silently dropped entries), the Brewfile.tmpl
+# cleanliness gate, and the interactive loop driven through the
+# CHEZMOI_BREW_SYNC_TTY seam. apply_add/scan_sections are extracted with sed
+# and driven directly — same pattern drift-check.bats uses for brewup() — so
+# no journal, TTY, or interactive loop is needed for the insert tests.
+
+load helpers
 
 setup() {
     REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -58,6 +61,8 @@ EOF
 }
 
 teardown() {
+    # feed_tty's write-end holder (see helpers.bash) has nothing left to do.
+    [[ -z ${FEED_TTY_PID:-} ]] || kill "$FEED_TTY_PID" 2>/dev/null || true
     rm -rf "$TMPHOME"
 }
 
@@ -228,6 +233,35 @@ EOF
     run "$SYNC"
     [ "$status" -eq 0 ]
     [[ "$output" == *"no net changes"* ]]
+}
+
+# ------------------------------------------------------------------------------
+# Interactive loop — driven through the CHEZMOI_BREW_SYNC_TTY seam (see
+# feed_tty in helpers.bash for the fifo mechanism and why a plain answers file
+# cannot survive the per-prompt reopen of $TTY). Unlike the gate tests, the
+# journal event here is an install of a package NOT in the Brewfile, so
+# classification yields a net add and the run reaches the section prompt, the
+# wrap prompt, validation, the diff, and the final confirmation.
+# ------------------------------------------------------------------------------
+
+@test "abort at the final confirmation leaves Brewfile.tmpl and journal intact" {
+    gate_setup
+    printf '{"ts":1,"op":"install","kind":"brew","name":"jq","args":[],"rc":0}\n' >"$JOURNAL"
+    cp "$SRCDIR/Brewfile.tmpl" "$TMPHOME/brewfile.before"
+    cp "$JOURNAL" "$TMPHOME/journal.before"
+
+    export CHEZMOI_BREW_SYNC_TTY="$TMPHOME/tty"
+    # Answers in prompt order: section 1 (CLI Tools), no personal-only wrap,
+    # then n at "Apply these changes and truncate journal?".
+    feed_tty "$TMPHOME/tty" 1 n n
+    run "$SYNC"
+    [ "$status" -eq 0 ]
+    # The plan must have made it through validation to the diff — an early
+    # exit would leave the files untouched too and prove nothing.
+    [[ "$output" == *'+brew "jq"'* ]]
+    [[ "$output" == *"Aborted"* ]]
+    cmp "$TMPHOME/brewfile.before" "$SRCDIR/Brewfile.tmpl"
+    cmp "$TMPHOME/journal.before" "$JOURNAL"
 }
 
 @test "gate refuses an untracked Brewfile.tmpl" {

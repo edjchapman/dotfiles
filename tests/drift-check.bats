@@ -310,6 +310,19 @@ EOF
     [ -f "$TMPHOME/chezmoi-invoked" ]
 }
 
+@test "--brief falls through to the full check when HAD_ERROR is non-numeric" {
+    # HAD_ERROR feeds an arithmetic test on the fast path; before it joined
+    # the numeric-validation conjunction, a corrupted value leaned on bash
+    # coercion instead of falling through like every other field would.
+    make_minimal_stubs
+    # The cache is fresh (write_state just wrote it), so only the corrupted
+    # field can force the fallthrough the assertion below observes.
+    write_state home=2 error=garbage
+
+    run "$DRIFT_CHECK" --brief --quiet
+    [ -f "$TMPHOME/chezmoi-invoked" ]
+}
+
 @test "--brief exits clean on a cached zero total" {
     make_minimal_stubs
     write_state summary='drift: clean'
