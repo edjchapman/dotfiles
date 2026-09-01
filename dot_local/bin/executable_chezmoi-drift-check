@@ -178,12 +178,15 @@ if [[ $MODE == "brief" ]] && cache_fresh; then
     # If any is missing/non-numeric, the cache file is partial or schema-drifted —
     # fall through to the full check rather than silently report stale counts.
     # DEFAULTS_DRIFT / SECURITY_DRIFT are forward-compatible: if absent in an
-    # older cache file, they default to 0.
+    # older cache file, they default to 0. HAD_ERROR is validated too: it feeds
+    # the arithmetic test below, where a corrupted value would otherwise rely
+    # on bash coercion instead of falling through like every other field.
     if [[ $HOME_DRIFT =~ ^[0-9]+$ &&
         $BREW_MISSING =~ ^[0-9]+$ &&
         $BREW_EXTRA =~ ^[0-9]+$ &&
         ${DEFAULTS_DRIFT:-0} =~ ^[0-9]+$ &&
         ${SECURITY_DRIFT:-0} =~ ^[0-9]+$ &&
+        ${HAD_ERROR:-0} =~ ^[0-9]+$ &&
         ${BREWUP_FAILED:-0} == "$_brewup_live" &&
         -n $summary ]]; then
         emit "$summary"

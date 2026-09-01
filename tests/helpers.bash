@@ -5,7 +5,9 @@
 # drift-state fixture: mac.bats drives chezmoi-fix from it, and drift-check.bats
 # drives both the --brief fast path and the dot_zshrc banner block from it. A
 # second copy would recreate, inside the test suite, exactly the two-renderings-
-# of-one-truth problem these tests exist to guard against.
+# of-one-truth problem these tests exist to guard against. feed_tty is shared
+# for the same reason: mac.bats and brew-sync.bats both drive their script's
+# interactive loop through the CHEZMOI_*_TTY seam.
 
 # Write a drift state file with named overrides; missing count fields default
 # to 0. Requires $XDG_CACHE_HOME/chezmoi-drift to exist.
@@ -23,6 +25,35 @@
 # `legacy=1` writes a state file in the pre-S1 schema — neither new field
 # present. That is the fixture for the backwards-compatibility path: the cache
 # TTL is 4h, so such a file exists in the wild after every upgrade.
+# feed_tty <fifo-path> <answer>... — create a fifo at <path>, write one line
+# per answer, and hold the write end open in the background.
+#
+# Why a fifo and not a file of pre-scripted answers: the scripts under test
+# read every prompt as its own redirection (`read -r -p … <"$TTY"`), so the
+# input source is REOPENED per prompt. A regular file restarts at byte 0 on
+# every reopen and would answer the first line forever. A fifo has one kernel
+# pipe buffer shared across opens, and bash's `read` consumes non-seekable fds
+# byte-at-a-time, so each prompt takes exactly the next line — provided a
+# writer keeps the write end open, or the buffered data is discarded the
+# moment the reader closes between prompts. Hence the background holder: it
+# writes all answers up front, then sleeps. The sleep also bounds any
+# deadlock — if the script asks for more answers than were scripted, the
+# holder's exit closes the write end after 10s and every later read gets EOF
+# (i.e. the prompt's default) instead of hanging the suite.
+#
+# Callers must kill $FEED_TTY_PID in teardown (fd 3 is closed here so the
+# holder can never hang bats itself, but there's no point leaving it around).
+feed_tty() {
+    local fifo=$1
+    shift
+    mkfifo "$fifo"
+    {
+        printf '%s\n' "$@"
+        sleep 10
+    } >"$fifo" 2>/dev/null 3>&- &
+    FEED_TTY_PID=$!
+}
+
 write_state() {
     local home_drift=0 brew_missing=0 brew_extra=0 brew_extra_names="" defaults_drift=0
     local security_drift=0 brewup_failed=0 had_error=0 checked_at summary="drift: clean"

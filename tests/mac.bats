@@ -1,8 +1,11 @@
 #!/usr/bin/env bats
 # Tests for chezmoi-fix (the `mac` alias) and chezmoi-drift-check summary text.
-# Runs against a synthetic drift state file under a temporary XDG_CACHE_HOME,
-# with the script in CHEZMOI_FIX_TEST_MODE=1 so it skips the chezmoi/TTY/refresh
-# preconditions and exits after menu rendering.
+# Runs against a synthetic drift state file under a temporary XDG_CACHE_HOME.
+# Menu-rendering tests use CHEZMOI_FIX_TEST_MODE=1, which skips the
+# chezmoi/TTY/refresh preconditions and exits after the menu. Dispatch tests
+# run the script for real, feeding prompt answers through the CHEZMOI_FIX_TTY
+# seam — see feed_tty in helpers.bash for the fifo mechanism and why a plain
+# answers file cannot work.
 
 load helpers
 
@@ -29,11 +32,28 @@ setup() {
 }
 
 teardown() {
+    # feed_tty's write-end holder (see helpers.bash) has nothing left to do.
+    [[ -z ${FEED_TTY_PID:-} ]] || kill "$FEED_TTY_PID" 2>/dev/null || true
     rm -rf "$TMPHOME"
 }
 
 # write_state comes from tests/helpers.bash (loaded above) — shared with
 # drift-check.bats so both suites synthesize state files the same way.
+
+# A no-op chezmoi so the non-test-mode prerequisite check passes.
+stub_chezmoi() {
+    printf '#!/bin/sh\nexit 0\n' >"$TMPHOME/bin/chezmoi"
+    chmod +x "$TMPHOME/bin/chezmoi"
+}
+
+# Run chezmoi-fix for real (test mode off), answering its prompts in order
+# from the arguments via the TTY seam.
+drive_fix() {
+    export CHEZMOI_FIX_TEST_MODE=0
+    export CHEZMOI_FIX_TTY="$TMPHOME/tty"
+    feed_tty "$TMPHOME/tty" "$@"
+    run "$FIX"
+}
 
 @test "clean state prints 'No drift detected' and exits" {
     write_state summary='drift: clean'
@@ -215,14 +235,12 @@ EOF
 }
 
 @test "header reconciles cached vs fresh totals when they differ" {
-    # Cached state = 2 (one home + one security). Set CHECKED_AT to now so it's
-    # not annotated as stale. Then simulate a refresh that leaves only security.
+    # Behavioural: seed a cached total of 2 (one home + one security), stub
+    # chezmoi-drift-check on PATH to rewrite the state to only security=1 —
+    # the up-front refresh runs it — then drive the menu through the seam and
+    # quit. The header must explain the banner/menu mismatch rather than leave
+    # the user seeing "banner said 2, menu shows 1" with no explanation.
     write_state home=1 security=1 summary='drift: home: 1, security: 1'
-    # Snapshot the cached file path content into a place chezmoi-fix can read
-    # twice — we need to overwrite the file between the cached read and the
-    # post-refresh read.
-    # Easiest: provide a fake chezmoi-drift-check on PATH that rewrites the
-    # state file to "only security=1".
     cat >"$TMPHOME/bin/chezmoi-drift-check" <<EOF
 #!/bin/sh
 cat >"$XDG_CACHE_HOME/chezmoi-drift/state" <<INNER
@@ -238,28 +256,39 @@ INNER
 exit 1
 EOF
     chmod +x "$TMPHOME/bin/chezmoi-drift-check"
-    # Run NOT in test mode so the refresh fires.
-    unset CHEZMOI_FIX_TEST_MODE
-    # Provide a dummy chezmoi binary so the prereq check passes.
-    cat >"$TMPHOME/bin/chezmoi" <<'STUB'
-#!/bin/sh
-exit 0
-STUB
-    chmod +x "$TMPHOME/bin/chezmoi"
-    # Pipe q to satisfy the read; redirect stdin so /dev/tty read aborts via timeout.
-    # Bats doesn't easily provide a tty, so we instead set CHEZMOI_FIX_TEST_MODE
-    # back on but call the refresh manually first to mimic the dispatch effect.
-    export CHEZMOI_FIX_TEST_MODE=1
-    "$TMPHOME/bin/chezmoi-drift-check" >/dev/null 2>&1 || true
-    # Now the state file shows security=1, but we tell chezmoi-fix the banner
-    # saw 2 by writing a side-channel. The cleanest test-mode equivalent is to
-    # invoke chezmoi-fix twice — first to seed cached_drift_total=2, then
-    # confirm the reconciliation phrase appears in normal flow. The simplest
-    # check below: with test_mode on, the cached read uses the current file,
-    # so we instead validate that the reconciliation BRANCH exists in the
-    # source. (Behavioural test would need a real tty harness — out of scope.)
-    run grep -n "refreshed: banner showed" "$FIX"
+    stub_chezmoi
+    drive_fix q
     [ "$status" -eq 0 ]
+    [[ "$output" == *"(refreshed: banner showed 2, now 1)"* ]]
+}
+
+@test "a menu choice dispatches through the case to the selected tool" {
+    # End-to-end through the seam: security drift makes the inspect entry
+    # option 1; choosing it must reach the dispatch case, exec the audit tool,
+    # and propagate its exit status. This is the layer CHEZMOI_FIX_TEST_MODE
+    # (which exits after rendering the menu) could never reach.
+    write_state security=1 summary='drift: security: 1'
+    printf '#!/bin/sh\necho "security-audit ran: $*"\nexit 0\n' \
+        >"$TMPHOME/bin/chezmoi-security-audit"
+    chmod +x "$TMPHOME/bin/chezmoi-security-audit"
+    stub_chezmoi
+    drive_fix 1
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"security-audit ran: --drift"* ]]
+}
+
+@test "brew-extra path exits 0 when every package is skipped" {
+    # Regression cover for the #142 class: `((removed > 0 || adopted > 0)) &&
+    # refresh_drift` as the branch-final command made a skip-everything run
+    # exit 1 under `set -uo pipefail`. Only a driven run can catch that — the
+    # failure was in the exit status, not in any text a grep could pin.
+    write_state brew_extra=2 extra_names='restic foo' summary='drift: brew-extra: 2'
+    stub_chezmoi
+    # Option 1 is brew-extra (no other drift); then skip both packages.
+    drive_fix 1 s s
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"skipped restic"* ]]
+    [[ "$output" == *"skipped foo"* ]]
 }
 
 @test "mutating dispatch targets end in a drift refresh, not a bare exec" {

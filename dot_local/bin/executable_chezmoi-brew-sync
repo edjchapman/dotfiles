@@ -339,7 +339,10 @@ format_line() {
 # ------------------------------------------------------------------------------
 # Interactive loop.
 # ------------------------------------------------------------------------------
-TTY=/dev/tty
+# Interactive input source. Env-overridable (a test seam: bats points it at a
+# fifo to drive the loop through to the final confirmation); unset in normal
+# use, so a non-interactive run still hits the die-guard below.
+TTY=${CHEZMOI_BREW_SYNC_TTY:-/dev/tty}
 [[ -r $TTY && -w $TTY ]] || die "no tty available; sync requires an interactive shell"
 
 echo
