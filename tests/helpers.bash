@@ -51,6 +51,7 @@ feed_tty() {
         printf '%s\n' "$@"
         sleep 10
     } >"$fifo" 2>/dev/null 3>&- &
+    # shellcheck disable=SC2034  # consumed by the callers' teardowns (cross-file)
     FEED_TTY_PID=$!
 }
 
