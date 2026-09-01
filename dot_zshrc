@@ -102,6 +102,12 @@ export ENABLE_TOOL_SEARCH=auto:5
 # Suppress Homebrew informational hints while keeping automatic updates enabled
 export HOMEBREW_NO_ENV_HINTS=1
 
+# brew cleanup only prunes cached downloads older than this (default: 120).
+# brewup() runs cleanup daily, so 30 keeps the cask-installer cache bounded
+# without a separate command — it had reached 15GB of DMGs for apps already
+# installed, none of which brew would touch under the default threshold.
+export HOMEBREW_CLEANUP_MAX_AGE_DAYS=30
+
 # Homebrew maintenance paths. Defined ahead of brewup() so the function can own
 # its own failure-marker bookkeeping.
 #
