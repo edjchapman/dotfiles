@@ -116,6 +116,9 @@ cask "proton-mail"
 cask "chatgpt"
 
 {{ if eq .machine_type "personal" -}}
+# Dev Tools — CLI, but distributed as a cask (migrated from homebrew/core)
+cask "android-platform-tools"
+
 # Desktop Apps — Media & Social
 cask "tidal"
 cask "whatsapp"
@@ -123,6 +126,9 @@ cask "whatsapp"
 # Desktop Apps — Crypto
 cask "monero-wallet"
 cask "sparrow"
+
+# Desktop Apps — Mail
+cask "tuta-mail"
 {{ end -}}
 
 # Mac App Store — requires a signed-in Apple ID. On a fresh machine, sign in to
