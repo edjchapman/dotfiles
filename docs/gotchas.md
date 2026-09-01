@@ -24,7 +24,7 @@ Things that have bitten the maintainer and would bite a new contributor — coll
 !!! danger "Always use `--encrypt` for any file with credentials"
     `chezmoi add ~/.zshrc.local` (no flag) commits plaintext. Once committed, it's in git history forever. Use `chezmoi add --encrypt ~/.zshrc.local`.
 
-    **Why**: `gitleaks` and `ggshield` pre-commit hooks catch most patterns, but not all. The `--encrypt` flag is the deterministic guard.
+    **Why**: the `gitleaks` pre-commit hook and `ggshield` pre-push scan catch most patterns, but not all. The `--encrypt` flag is the deterministic guard.
 
 !!! danger "The age recipient is *public* but the key is *private*"
     The `recipient = "age1..."` line in `.chezmoi.toml.tmpl` is committed and visible on GitHub. That's intentional — it identifies who can decrypt. The matching private `key.txt` is what unlocks it; **never** commit that file or anything generated from it.

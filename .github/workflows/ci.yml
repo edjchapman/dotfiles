@@ -68,7 +68,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Runs the repo-specific hooks (chezmoi render, docs gates, ggshield, codespell,
+    # Runs the repo-specific hooks (chezmoi render, docs gates, codespell,
     # file hygiene). The five linters that have dedicated parallel jobs above
     # (shellcheck/shfmt/yamllint/markdownlint/gitleaks) are SKIP-ped here so each runs
     # once, not twice. Job name kept as-is: it is a required status check in branch

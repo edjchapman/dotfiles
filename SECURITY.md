@@ -16,7 +16,7 @@ Acknowledgement target: within 72 hours. Fix target: depends on severity and exp
 - Plaintext credentials, age keys, or other secrets discoverable in commit history, in the rendered `$HOME` files, or in any artifact a third party can access.
 - Defects in `run_once_*` or `run_onchange_*` scripts that weaken macOS hardening (FileVault, firewall, SIP, sudo, gatekeeper).
 - Template logic that produces a `$HOME` file with credentials owned `world-readable`, or that writes to a path outside the intended scope.
-- Pre-commit hook or CI bypasses that allow secret leaks past `gitleaks` / `ggshield`.
+- Git-hook or CI bypasses that allow secret leaks past `gitleaks` (pre-commit) / `ggshield` (pre-push).
 - Anything in `.chezmoiignore` that, if missed, would deploy a sensitive file to `$HOME` or to a fork.
 
 ## What's out of scope
@@ -44,7 +44,7 @@ If you discover a leaked secret, the rotation procedure is in [`docs/runbooks/se
 - Rotating a single secret (AWS key, GitHub PAT) by editing the plaintext source, re-encrypting via `chezmoi add --encrypt`, and verifying `git diff` shows only the encrypted blob change.
 - Rotating the age key itself (full re-encryption of every `.age` file in the repo, key redistribution, backup procedure).
 
-The pre-commit hooks (`gitleaks`, `ggshield`) and the monthly full-history `audit.yml` workflow are the layered defences against accidental leaks. If you find a way to bypass them, that's a high-severity report.
+The `gitleaks` pre-commit hook, the `ggshield` pre-push scan, and the monthly full-history `audit.yml` workflow are the layered defences against accidental leaks. If you find a way to bypass them, that's a high-severity report.
 
 ## Supported versions
 

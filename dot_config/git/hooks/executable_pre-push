@@ -1,0 +1,64 @@
+#!/bin/bash
+# Global pre-push hook — scans for secrets in the commits about to be pushed.
+# Managed by chezmoi, deployed to ~/.config/git/hooks/.
+#
+# Why the scan lives here and not in pre-commit: ggshield bills the shared
+# GitGuardian workspace quota (a rolling 30-day window, one budget for every
+# repo on the machine). pre-commit fires on every `git commit` invocation —
+# amends, commits later squashed away, and attempts the commit-msg gate then
+# rejects all spend a scan without producing a surviving commit. Pre-push fires
+# once per push over the incremental range git is about to send, so the meter
+# tracks what actually leaves the machine. GitGuardian's own PR check remains
+# the server-side backstop for anything that slips through locally.
+#
+# Failure semantics: any failing check exits non-zero and blocks the push.
+# The exit code is propagated explicitly so we can print a tool-specific
+# recovery hint before exiting; `set -e` would skip the hint.
+#
+# Only exit code 1 (SCAN_FOUND_PROBLEMS) means a secret was detected. ggshield
+# also exits 3 (auth), 4 (server unreachable) and 128 (catch-all, which is what
+# an exhausted GitGuardian quota raises). Reporting those as "secrets detected"
+# is actively misleading: it sends you sanitising files that were never dirty,
+# and the quota case is the common one.
+if command -v ggshield &>/dev/null; then
+    ggshield secret scan pre-push "$@"
+    exit_code=$?
+    if [ $exit_code -eq 1 ]; then
+        echo ""
+        echo "ggshield detected secrets in the commits you are pushing. Fix them first."
+        echo "If this is a false positive, allowlist the secret in .gitguardian.yaml"
+        exit $exit_code
+    elif [ $exit_code -ne 0 ]; then
+        echo ""
+        echo "ggshield could NOT complete the scan (exit ${exit_code})."
+        echo "This is a tool/API failure — NOT a secret detection. Do not sanitise anything."
+        case $exit_code in
+            3) echo "  Authentication failed. Try: ggshield auth login" ;;
+            4) echo "  GitGuardian is unreachable. Check: ggshield api-status" ;;
+            128)
+                echo "  Most likely the workspace API quota is exhausted:"
+                ggshield quota 2>&1 | sed 's/^/    /'
+                echo "  Quota is a rolling 30-day window shared across every repo;"
+                echo "  it recovers as old usage ages out, not by topping up."
+                echo "  Exhaustion can persist for weeks. If a push cannot wait: gitleaks"
+                echo "  already scanned every commit locally and GitGuardian's GitHub App"
+                echo "  scans server-side, so 'git push --no-verify' skips only this scan."
+                echo "  It requires Ed's explicit per-push approval — agents must stop and"
+                echo "  ask, never run it unprompted."
+                ;;
+        esac
+        echo "  The push is blocked because the scan did not run."
+        exit $exit_code
+    fi
+else
+    # Parity with the warning the removed .pre-commit-config.yaml entry printed:
+    # a missing scanner must be loud, not an invisible pass.
+    echo "WARNING: ggshield not installed; pre-push secret scan skipped (install via Brewfile or pip)" >&2
+fi
+
+# Repo-local pre-push hooks are NOT chained here (unlike the companion
+# pre-commit hook, which runs `pre-commit run --hook-stage pre-commit`).
+# Chaining would need stdin splitting — git hands the ref list on stdin and
+# ggshield consumes it above — and no repo on this machine defines
+# pre-push-stage framework hooks. If one ever does, capture stdin first
+# (input=$(cat)) and feed a copy to each consumer.

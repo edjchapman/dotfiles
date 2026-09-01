@@ -92,7 +92,7 @@ What this triggers, in order:
 
 ```bash
 gh auth login                  # GitHub CLI — for PR workflow + git credentials
-ggshield auth login            # GitGuardian — pre-commit secret scanning
+ggshield auth login            # GitGuardian — pre-push secret scanning
 aws sso login                  # AWS SSO — default profile
 ```
 

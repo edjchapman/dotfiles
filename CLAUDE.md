@@ -153,7 +153,7 @@ Standups are **not** committed to this repo. They are delivered to the pinned Gi
 
 The user-facing summary is in [`README.md`](README.md) under "What runs automatically". Agent-relevant points:
 
-- Every commit runs shellcheck, shfmt, yamllint, markdownlint, gitleaks, ggshield via `.pre-commit-config.yaml` + a local `make verify-templates` hook.
+- Every commit runs shellcheck, shfmt, yamllint, markdownlint, gitleaks via `.pre-commit-config.yaml` + a local `make verify-templates` hook. ggshield scans once per push (global pre-push hook) to spare the shared GitGuardian quota.
 - Every push runs the same checks plus a 4-cell template matrix and a macOS `brew bundle check` in CI (`.github/workflows/ci.yml`).
 - Weekly draft PR from `update-externals.yml`; monthly full-history scan from `audit.yml`. **Nothing auto-merges. Nothing auto-applies.** Brew currency is tracked on the live machine by the daily `brewup` background task, not in CI — a fresh runner has no installed-version state to compare against.
 - `update-externals.yml` PRs the `oh-my-zsh` SHA pin — the only chezmoi external. `claude-code-config` is **not** an external: it's an actively-developed working clone at `~/Development/claude-code-config` (bootstrapped by `run_onchange_after_07` on a fresh machine), and updates flow through the normal git workflow in that repo — a git-repo external would `git pull --rebase` into a dirty working tree at apply time and fail.

@@ -107,7 +107,6 @@ One-page command reference. Print-friendly (the print stylesheet hides nav and c
 | `yamllint` | YAML style violations |
 | `gitleaks` | Common secret patterns (AWS, GitHub, etc.) |
 | `markdownlint-cli2` | Markdown style |
-| `ggshield` | GitGuardian secret scan |
 | `shellcheck-via-make` | Shell linting (template-aware) |
 | `chezmoi-execute-template` | Template renders for at least one cell |
 | `codespell` | Common typos |
