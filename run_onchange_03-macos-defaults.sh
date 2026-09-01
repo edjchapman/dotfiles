@@ -1,6 +1,12 @@
 #!/bin/bash
 # macOS Defaults — non-sudo settings
 # chezmoi run_onchange: re-runs when this file changes
+#
+# Do NOT add `-array`/`-dict` writes here without first teaching
+# chezmoi-defaults-audit to compare them: the audit normalizes only -bool
+# values and otherwise compares as strings, while `defaults read` returns
+# plist-formatted output — so such an entry becomes a permanent false
+# mismatch. Add plist-aware normalization to the audit before introducing one.
 
 set -euo pipefail
 

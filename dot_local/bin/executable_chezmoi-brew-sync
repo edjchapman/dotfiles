@@ -437,6 +437,38 @@ apply_remove() {
         mas) awk -v p="id:[[:space:]]*${esc}[[:space:]]*\$" '$0 !~ p {print}' "$WORK" >"$tmp" ;;
     esac
     mv "$tmp" "$WORK"
+
+    # Sweep a conditional wrapper the removal just emptied: a {{ if … }} line
+    # now followed (modulo blank lines) by its {{ end }} is dropped as a unit,
+    # intervening blanks included. The if/end patterns mirror scan_sections'.
+    # Single pass: an emptied block nested directly inside another is not
+    # cascaded — the next removal's sweep (or a manual edit) picks it up.
+    tmp=$(mktemp -t brewfile-rm.XXXXXX)
+    awk '
+        function flush(  i) {
+            for (i = 1; i <= held; i++) print buf[i]
+            held = 0
+        }
+        /^\{\{[[:space:]]*if[[:space:]]/ {
+            flush()
+            buf[++held] = $0
+            next
+        }
+        held && /^[[:space:]]*$/ {
+            buf[++held] = $0
+            next
+        }
+        held && /^\{\{[[:space:]]*end[[:space:]]*-?}}/ {
+            held = 0
+            next
+        }
+        {
+            flush()
+            print
+        }
+        END { flush() }
+    ' "$WORK" >"$tmp"
+    mv "$tmp" "$WORK"
 }
 
 apply_add() {

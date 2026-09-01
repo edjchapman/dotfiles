@@ -1,6 +1,12 @@
 # Homebrew Bundle — managed by chezmoi
 # Applied automatically by chezmoi when this file changes
 # To add packages: edit this file, then run `chezmoi apply`
+#
+# Entry lines must NOT carry trailing comments — put comments on their own
+# line. The sync tooling (chezmoi-brew-sync) matches entries with
+# line-anchored patterns: a trailing comment such as `cask "foo"  # pinned`
+# makes the entry invisible to it (duplicates on re-install, silent no-op
+# on removal).
 
 # Taps
 tap "hashicorp/tap"
