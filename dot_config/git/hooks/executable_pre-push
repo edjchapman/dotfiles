@@ -42,11 +42,23 @@ if command -v ggshield &>/dev/null; then
                 echo "  it recovers as old usage ages out, not by topping up."
                 echo "  Exhaustion can persist for weeks. If a push cannot wait: gitleaks"
                 echo "  already scanned every commit locally and GitGuardian's GitHub App"
-                echo "  scans server-side, so with explicit approval 'git push --no-verify'"
-                echo "  is the sanctioned escape hatch (this hook is the only pre-push check)."
+                echo "  scans server-side, so 'git push --no-verify' skips only this scan."
+                echo "  It requires Ed's explicit per-push approval — agents must stop and"
+                echo "  ask, never run it unprompted."
                 ;;
         esac
         echo "  The push is blocked because the scan did not run."
         exit $exit_code
     fi
+else
+    # Parity with the warning the removed .pre-commit-config.yaml entry printed:
+    # a missing scanner must be loud, not an invisible pass.
+    echo "WARNING: ggshield not installed; pre-push secret scan skipped (install via Brewfile or pip)" >&2
 fi
+
+# Repo-local pre-push hooks are NOT chained here (unlike the companion
+# pre-commit hook, which runs `pre-commit run --hook-stage pre-commit`).
+# Chaining would need stdin splitting — git hands the ref list on stdin and
+# ggshield consumes it above — and no repo on this machine defines
+# pre-push-stage framework hooks. If one ever does, capture stdin first
+# (input=$(cat)) and feed a copy to each consumer.
