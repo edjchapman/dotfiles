@@ -65,6 +65,21 @@ drive() { # <workfile> <kind> <line> <sect_idx> <wrap>
     run bash "$TMPHOME/driver.bash" "$@"
 }
 
+drive_remove() { # <workfile> <kind> <name>
+    # Extract apply_remove on demand (same sed pattern and zero-byte guard as
+    # the setup extraction) and drive it in isolation, mirroring drive().
+    sed -n '/^apply_remove()/,/^}/p' "$SYNC" >"$TMPHOME/rmfns.bash"
+    grep -q 'apply_remove()' "$TMPHOME/rmfns.bash"
+    cat >"$TMPHOME/rmdriver.bash" <<EOF
+set -uo pipefail
+WORK=\$1
+source "$TMPHOME/rmfns.bash"
+apply_remove "\$2" "\$3"
+cat "\$WORK"
+EOF
+    run bash "$TMPHOME/rmdriver.bash" "$@"
+}
+
 @test "scan_sections reads whichever file it is handed" {
     # The proof that the two former copies are one: apply_add drives this same
     # function against $WORK (the four tests below), while here it is driven
@@ -115,6 +130,43 @@ drive() { # <workfile> <kind> <line> <sect_idx> <wrap>
     drive "$TMPHOME/work" brew 'brew "wget"' 1 0
     [ "$status" -eq 0 ]
     printf '# CLI Tools\nbrew "bat"\nbrew "wget"\n\n# Mac App Store\nmas "Amphetamine", id: 937984704\n' >"$TMPHOME/want"
+    diff -u "$TMPHOME/want" "$TMPHOME/work"
+}
+
+@test "removing the sole wrapped entry sweeps the emptied conditional" {
+    printf '# CLI Tools\nbrew "bat"\n{{ if eq .machine_type "personal" -}}\nbrew "sherlock"\n{{ end -}}\nbrew "wget"\n' >"$TMPHOME/work"
+    drive_remove "$TMPHOME/work" brew sherlock
+    [ "$status" -eq 0 ]
+    printf '# CLI Tools\nbrew "bat"\nbrew "wget"\n' >"$TMPHOME/want"
+    diff -u "$TMPHOME/want" "$TMPHOME/work"
+}
+
+@test "removing one of two wrapped entries keeps the wrapper and sibling" {
+    printf '# Desktop Apps\n{{ if eq .machine_type "personal" -}}\ncask "tidal"\ncask "whatsapp"\n{{ end -}}\n' >"$TMPHOME/work"
+    drive_remove "$TMPHOME/work" cask tidal
+    [ "$status" -eq 0 ]
+    printf '# Desktop Apps\n{{ if eq .machine_type "personal" -}}\ncask "whatsapp"\n{{ end -}}\n' >"$TMPHOME/want"
+    diff -u "$TMPHOME/want" "$TMPHOME/work"
+}
+
+@test "sweep drops blank lines inside the emptied conditional as a unit" {
+    # A wrapper whose sole entry sat between blank lines: the removal leaves
+    # {{ if }} + blanks + {{ end }}; all of it goes, nothing else moves.
+    printf '# CLI Tools\nbrew "bat"\n{{ if eq .machine_type "personal" -}}\n\nbrew "sherlock"\n\n{{ end -}}\nbrew "wget"\n' >"$TMPHOME/work"
+    drive_remove "$TMPHOME/work" brew sherlock
+    [ "$status" -eq 0 ]
+    printf '# CLI Tools\nbrew "bat"\nbrew "wget"\n' >"$TMPHOME/want"
+    diff -u "$TMPHOME/want" "$TMPHOME/work"
+}
+
+@test "sweep leaves a wrapper with a comment line intact" {
+    # Section-header comments inside a wrapper are content: the multi-section
+    # personal block in Brewfile.tmpl must not be collapsed when its last
+    # package goes — the header comment still needs a human decision.
+    printf '{{ if eq .machine_type "personal" -}}\n# Desktop Apps — Crypto\ncask "sparrow"\n{{ end -}}\n' >"$TMPHOME/work"
+    drive_remove "$TMPHOME/work" cask sparrow
+    [ "$status" -eq 0 ]
+    printf '{{ if eq .machine_type "personal" -}}\n# Desktop Apps — Crypto\n{{ end -}}\n' >"$TMPHOME/want"
     diff -u "$TMPHOME/want" "$TMPHOME/work"
 }
 
