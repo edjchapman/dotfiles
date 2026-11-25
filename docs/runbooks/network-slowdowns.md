@@ -11,11 +11,11 @@ How to find the slow hop, and the record of the Oct–Nov 2026 investigation on 
 
 ## Wi-Fi latency spikes, HTTPS requests time out
 
-**Find the slow hop first.** `net-check [label]` prints router and `1.1.1.1` ping, an HTTPS timing and the default route on one line; run it before and after each change. If the router ping alone carries the delay, the problem is between the Mac and the hub, not the ISP. A column headed `router(tcp)` means the router ignored pings, so `net-check` timed opening a connection to it instead; compare it only with other `router(tcp)` runs.
+**Find the slow hop first.** `net-check [label]` prints router and `1.1.1.1` ping, an HTTPS timing and the default route on one line; run it before and after each change. If the router ping alone carries the delay, the problem is between the Mac and the hub, not the ISP. A column headed `router(tcp)` means the router ignored pings, so `net-check` timed opening a connection to it instead; compare it only with other `router(tcp)` runs. This router has ignored pings from this Mac since 25 Nov 2026; why isn't known.
 
 **Then check another device.** Ping the router (or load a page) from a phone on the same Wi-Fi during a slow spell. Phone slow too ➜ the hub or the airspace, not the Mac — power-cycle the hub and check its connected-devices list for a device saturating it.
 
-**Judge a fix over half an hour, not one reading.** Slow spells come and go every few minutes, so a change made just before a quiet spell looks like a fix. `net-check --watch [label]` samples the router and `1.1.1.1` every 10 s for 30 minutes (`--every`/`--count` to change), then prints the share of samples over 100 ms for each hop; run it before and after, and compare those shares. Ctrl-C stops early with the summary so far.
+**Judge a fix over half an hour, not one reading.** Slow spells come and go every few minutes, so a change made just before a quiet spell looks like a fix. `net-check --watch [label]` samples the router and `1.1.1.1` every 10 s for 30 minutes (`--every`/`--count` to change), then prints the share of samples over 100 ms for each hop; run it before and after, and compare those shares. Ctrl-C stops early with the summary so far. Save the samples (`| tee ~/net-watch.log`): the summary can't say when the bad ones fell.
 
 **Oct–Nov 2026 — NordVPN's `Shield` extension.** Spells: 0.3–4.3 s router ping, zero loss, strong signal. They came and went with `com.nordvpn.macos.Shield` ("NordVPN protection", endpoint security) across three transitions below, not with the VPN tunnel. Re-enabling it to confirm hasn't been tried. Losing packets as well, with `Shield` off and the Mac docked? See [Wi-Fi drops while docked to a USB-C hub](#wi-fi-drops-while-docked-to-a-usb-c-hub).
 
@@ -51,36 +51,37 @@ Loaded in the hundreds of ms against single digits idle ➜ bufferbloat; fix it 
 
 ## Wi-Fi drops while docked to a USB-C hub
 
-"Hub" here means the USB-C multiport adapter, not the router. **Leading suspect, not proven.** Unlike the `Shield` spells, these lose packets, and DNS and HTTPS time out. On 5 Nov 2026 they happened with `Shield` `[activated disabled]` and a strong signal.
+"Hub" here means the USB-C multiport adapter, not the router. **Leading suspect, not proven.** Unlike the `Shield` spells, these lose packets, and DNS and HTTPS time out, with `Shield` `[activated disabled]` and a strong signal.
 
-**Try first:** System Settings ➜ Network ➜ make every entry for the hub's Ethernet port inactive (`AX88179A` and `AX88179A 2` here). macOS can list one per device name, and only the entry matching the live port applies. Compare the device names with:
+**Fix for now:** unplug the hub. On 5 and 25 Nov 2026 the connection measured clean straight after.
 
-```bash
-networksetup -listnetworkserviceorder | grep -A1 AX88179A
-```
+**To keep the second monitor:** swap the hub for a USB-C to HDMI cable, which carries video only, and plug the charger straight into the Mac. Not yet tested here; run a watch with it before trusting it.
 
-**If it drops again:** connect that monitor with a USB-C to HDMI cable instead of the hub. Plug the charger straight into the Mac.
+**Not a fix:** making the hub's Ethernet entries inactive in System Settings ➜ Network (`AX88179A` and `AX88179A 2`). Both were inactive on 25 Nov and packets were still lost. The Mac wasn't routing through that port either: that afternoon's logs show its connection only ever on Wi-Fi or the VPN tunnel.
 
-**Compare Wi-Fi noise docked and undocked:**
+**Compare docked with undocked.** Read the Wi-Fi noise in each state, and pull the hub's plug-in (`enumerated`) and unplug (`destroying`) times to split saved watch samples by:
 
 ```bash
 system_profiler SPAirPortDataType | grep -m1 'Signal / Noise'
+/usr/bin/log show --last 2h --style compact \
+  --predicate 'process == "kernel" AND eventMessage CONTAINS "USBHostPort" AND eventMessage CONTAINS " Hub"'
 ```
 
-| 5 Nov | Noise | Router ping | Internet |
+| When | Noise | Router | Internet |
 |---|---|---|---|
-| 11:35, hub connected, about 30 s after power returned | -75 dBm | 1216 ms avg, 25% loss | `1.1.1.1` 87.5% loss; DNS and HTTPS timed out |
-| 11:39, hub unplugged | -89 dBm | 5.7 ms avg, no loss | HTTPS about 0.1 s |
-| 11:56–12:27, hub connected, both entries inactive | -79 to -83 dBm | 2/180 over 100 ms (max 126 ms), none lost | `1.1.1.1` 1/180 over 100 ms (max 141 ms), none lost |
-| 15:05, same, after a 13:15 hub replug | -82 dBm | 3–4 ms avg, no loss | HTTPS about 0.1 s |
+| 5 Nov 11:35, hub connected, about 30 s after power returned | -75 dBm | 1216 ms avg, 25% loss | `1.1.1.1` 87.5% loss; DNS and HTTPS timed out |
+| 5 Nov 11:39, hub unplugged | -89 dBm | 5.7 ms avg, no loss | HTTPS about 0.1 s |
+| 5 Nov 11:56–12:27, hub connected, both entries inactive | -79 to -83 dBm | 2/180 over 100 ms (max 126 ms), none lost | `1.1.1.1` 1/180 over 100 ms (max 141 ms), none lost |
+| 25 Nov 15:35–16:20, hub connected 15:46–16:09 only | not read | not measurable: pings ignored | `1.1.1.1` 49/180 over 100 ms (max 4267 ms), 36 lost |
+| 25 Nov 16:21–16:51, hub unplugged | -90 dBm at the start | `router(tcp)` 0/180 over 100 ms (max 29 ms) | `1.1.1.1` 0/180 over 100 ms (max 44 ms), none lost |
 
-Signal stayed about the same (-45 to -50 dBm) at 11:35 and 11:39, so moving the Mac doesn't explain the change, and the VPN tunnel stayed up throughout.
+Signal read -45 to -50 dBm each time it was checked and the VPN tunnel stayed up, so neither explains the change.
 
 **Not settled:**
 
-- **The cause:** radio noise and the Ethernet port are both possible. Noise stayed above the -89 dBm baseline even once the connection was stable.
-- **The fix:** this rests on one unplug test, and spells also cleared by themselves that day. The clean run happened with the entries inactive, but they weren't switched back on to confirm it.
-- **The trigger:** reconnecting the hub and charger was suspected, but no reconnect has been measured in its first minute with the entries inactive.
+- **The cause:** radio noise from the hub and its own unstable link are both possible. Noise sat above the -89 dBm baseline whenever it was read docked on 5 Nov. On 25 Nov the hub's USB 3 link dropped at 14:49 and came back 1.3 s later at USB 2 speed, too fast for a replug.
+- **The proof:** the 25 Nov samples weren't saved one by one, so the 36 lost can't be placed inside the 22 docked minutes. A watch docked throughout hasn't been run.
+- **Why docked is sometimes clean:** half an hour docked on 5 Nov lost nothing. Reconnecting the hub and charger was suspected as the trigger and never measured.
 - **The earlier spells:** there's no record of whether the Mac was docked for them.
 
 ## See also
