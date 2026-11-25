@@ -51,13 +51,13 @@ Loaded in the hundreds of ms against single digits idle ➜ bufferbloat; fix it 
 
 ## Wi-Fi drops while docked to a USB-C hub
 
-"Hub" here means the USB-C multiport adapter, not the router. **Leading suspect, not proven.** Unlike the `Shield` spells, these lose packets, and DNS and HTTPS time out, with `Shield` `[activated disabled]` and a strong signal.
+"Hub" here means the USB-C multiport adapter, not the router. **A suspect, not proven, and a weaker one since 25 Nov 2026:** both half-hour watches run docked throughout (5 and 25 Nov) lost no packets. Unlike the `Shield` spells, these lose packets, and DNS and HTTPS time out, with `Shield` `[activated disabled]` and a strong signal.
 
-**Fix for now:** unplug the hub. On 5 and 25 Nov 2026 the connection measured clean straight after.
+**During a spell:** unplug the hub and measure. The connection measured clean straight after on 5 and 25 Nov, but spells also end by themselves, so one unplug proves little.
 
-**To keep the second monitor:** swap the hub for a USB-C to HDMI cable, which carries video only, and plug the charger straight into the Mac. Not yet tested here; run a watch with it before trusting it.
+**To rule the hub out:** swap it for a USB-C to HDMI cable, which carries video only, and plug the charger straight into the Mac. Not yet tested here.
 
-**Not a fix:** making the hub's Ethernet entries inactive in System Settings ➜ Network (`AX88179A` and `AX88179A 2`). Both were inactive on 25 Nov and packets were still lost. The Mac wasn't routing through that port either: that afternoon's logs show its connection only ever on Wi-Fi or the VPN tunnel.
+**Not shown to help:** making the hub's Ethernet entries inactive in System Settings ➜ Network (`AX88179A` and `AX88179A 2`). Both were inactive for every 25 Nov watch, the bad one included. The Mac wasn't routing through that port either: that afternoon's logs show its connection only ever on Wi-Fi or the VPN tunnel.
 
 **Compare docked with undocked.** Read the Wi-Fi noise in each state, and pull the hub's plug-in (`enumerated`) and unplug (`destroying`) times to split saved watch samples by:
 
@@ -74,14 +74,15 @@ system_profiler SPAirPortDataType | grep -m1 'Signal / Noise'
 | 5 Nov 11:56–12:27, hub connected, both entries inactive | -79 to -83 dBm | 2/180 over 100 ms (max 126 ms), none lost | `1.1.1.1` 1/180 over 100 ms (max 141 ms), none lost |
 | 25 Nov 15:35–16:20, hub connected 15:46–16:09 only | not read | not measurable: pings ignored | `1.1.1.1` 49/180 over 100 ms (max 4267 ms), 36 lost |
 | 25 Nov 16:21–16:51, hub unplugged | -90 dBm at the start | `router(tcp)` 0/180 over 100 ms (max 29 ms) | `1.1.1.1` 0/180 over 100 ms (max 44 ms), none lost |
+| 25 Nov 17:24–17:54, hub connected throughout | -83 to -84 dBm | `router(tcp)` 0/180 over 100 ms (max 19 ms) | `1.1.1.1` 0/180 over 100 ms (max 41 ms), none lost |
 
-Signal read -45 to -50 dBm each time it was checked and the VPN tunnel stayed up, so neither explains the change.
+Signal read -44 to -50 dBm each time it was checked, so signal doesn't explain the change.
 
 **Not settled:**
 
-- **The cause:** radio noise from the hub and its own unstable link are both possible. Noise sat above the -89 dBm baseline whenever it was read docked on 5 Nov. On 25 Nov the hub's USB 3 link dropped at 14:49 and came back 1.3 s later at USB 2 speed, too fast for a replug.
-- **The proof:** the 25 Nov samples weren't saved one by one, so the 36 lost can't be placed inside the 22 docked minutes. A watch docked throughout hasn't been run.
-- **Why docked is sometimes clean:** half an hour docked on 5 Nov lost nothing. Reconnecting the hub and charger was suspected as the trigger and never measured.
+- **The cause:** radio noise from the hub and its unstable link are both possible, and neither is enough alone. Noise reads about 6 dB higher docked, yet the last watch was clean at -83 dBm; it was -75 dBm in the 5 Nov spell. The hub's USB link dropped to USB 2 speed at 14:49 on 25 Nov and flapped again at 17:39, mid-watch, without a slow sample.
+- **The bad 25 Nov watch:** its samples weren't saved one by one, so the 36 lost can't be placed inside the 22 docked minutes. The VPN is a second candidate: `1.1.1.1` read about 7 ms before that watch and about 33 ms after it, so the VPN's route changed during it. The log shows no tunnel drop, but a server switch inside the same tunnel wouldn't appear there.
+- **The trigger:** reconnecting the hub and charger is suspected. Both clean docked watches began minutes after plugging in, so the first minute after a reconnect has never been measured.
 - **The earlier spells:** there's no record of whether the Mac was docked for them.
 
 ## See also
