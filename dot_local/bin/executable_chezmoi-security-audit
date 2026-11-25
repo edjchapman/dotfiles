@@ -27,7 +27,7 @@ chezmoi-security-audit [--drift] [--quiet] [-h]
 
 Checks: FileVault, SIP, Gatekeeper, firewall+stealth, guest account, auto-login,
 remote Apple Events, SSH remote login, NordVPN Shield extension off,
-SSH key passphrase, AWS creds perms, age key perms, GPG signing key expiry (if configured),
+LaunchAgents pointing at a missing program, SSH key passphrase, AWS creds perms, age key perms, GPG signing key expiry (if configured),
 auto-update toggles and energy settings (pmset) — both read out of the sudo
 bootstrap script at run time, skipped if it cannot be sourced —
 softwareupdate pending.
@@ -212,6 +212,46 @@ check_nordvpn_shield() {
     fi
 }
 check_nordvpn_shield
+
+# ------------------------------------------------------------------------------
+# LaunchAgents whose program is gone. launchd still loads the plist at every
+# login, so whatever later appears at that path runs unprompted — and the usual
+# leftover is a `brew services` plist pointing under /opt/homebrew, which is
+# user-writable. Nothing else reports these: uninstalling the formula leaves
+# the plist behind and chezmoi does not manage it.
+#
+# Only absolute paths are judged; launchd resolves a bare name through its own
+# PATH. No plist yielding a judgeable path means the read told us nothing, so
+# skip rather than report a false pass.
+# ------------------------------------------------------------------------------
+check_launch_agents() {
+    local name="LaunchAgent programs exist" dir="$HOME/Library/LaunchAgents"
+    local plist prog label judged=0 orphaned=0 orphans=""
+    if [[ ! -d $dir ]] || ! command -v plutil >/dev/null 2>&1; then
+        check "$name" skip
+        return
+    fi
+    for plist in "$dir"/*.plist; do
+        [[ -f $plist ]] || continue
+        prog=$(plutil -extract Program raw -o - "$plist" 2>/dev/null) \
+            || prog=$(plutil -extract ProgramArguments.0 raw -o - "$plist" 2>/dev/null) \
+            || continue
+        [[ $prog == /* ]] || continue
+        judged=$((judged + 1))
+        [[ -e $prog ]] && continue
+        label=${plist##*/}
+        orphaned=$((orphaned + 1))
+        orphans="${orphans:+$orphans, }${label%.plist}"
+    done
+    if ((judged == 0)); then
+        check "$name" skip
+    elif ((orphaned == 0)); then
+        check "$name" ok
+    else
+        check "$name" fail "$orphaned of $judged point at a missing program: $orphans — for each, \`launchctl bootout gui/\$(id -u) ~/Library/LaunchAgents/<name>.plist\` then delete that plist"
+    fi
+}
+check_launch_agents
 
 # ------------------------------------------------------------------------------
 # SSH private keys — verify each one is passphrase-protected.

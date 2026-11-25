@@ -505,3 +505,114 @@ $(shield_line 'activated enabled')"
     run_shield ""
     [[ "${lines[0]}" == $'0\t0\t1' ]]
 }
+
+# ------------------------------------------------------------------------------
+# Orphaned LaunchAgents. The check is extracted by name and driven against a
+# scratch $HOME and a stubbed plutil, so neither the real machine's agents nor
+# a missing plutil (Linux CI) can affect it. A fixture "plist" is plain
+# `<key path>=<value>` lines, which is all the stub needs to answer -extract.
+# ------------------------------------------------------------------------------
+
+# run_agents [no-plutil] — print "<ok>\t<fail>\t<skip>" then any failure lines.
+run_agents() {
+    local fn
+    : >"$WORKDIR/agents.bash"
+    for fn in check check_launch_agents; do
+        sed -n "/^$fn()/,/^}/p" "$SECURITY_AUDIT" >>"$WORKDIR/agents.bash"
+    done
+    grep -q '^check_launch_agents()' "$WORKDIR/agents.bash"
+
+    mkdir -p "$WORKDIR/bin"
+    if [[ ${1:-} != no-plutil ]]; then
+        cat >"$WORKDIR/bin/plutil" <<'STUB'
+#!/bin/sh
+# plutil -extract <key path> raw -o - <file>
+PATH=/usr/bin:/bin
+value=$(grep "^$2=" "$6" | head -1 | cut -d= -f2-)
+if [ -z "$value" ]; then
+    echo "$6: Could not extract value, error: No value at that key path or invalid key path: $2"
+    exit 1
+fi
+printf '%s\n' "$value"
+STUB
+        chmod +x "$WORKDIR/bin/plutil"
+    fi
+
+    # PATH holds nothing but the stub: the check needs no other command, and a
+    # macOS runner's real /usr/bin/plutil must not answer in the stub's place.
+    run bash -c '
+        set -uo pipefail
+        HOME=$2 PATH=$3
+        OK=0 FAIL=0 SKIP=0 FAILED=()
+        source "$1"
+        check_launch_agents
+        printf "%s\t%s\t%s\n" "$OK" "$FAIL" "$SKIP"
+        printf "%s\n" "${FAILED[@]:-}"
+    ' _ "$WORKDIR/agents.bash" "$WORKDIR/home" "$WORKDIR/bin"
+}
+
+# agent <name> <key path> <program> — write one fixture plist.
+agent() {
+    mkdir -p "$WORKDIR/home/Library/LaunchAgents"
+    printf '%s=%s\n' "$2" "$3" >"$WORKDIR/home/Library/LaunchAgents/$1.plist"
+}
+
+@test "agents: every program present passes" {
+    agent com.user.one ProgramArguments.0 /bin/sh
+    agent com.user.two Program /bin/sh
+    run_agents
+    [ "$status" -eq 0 ]
+    [[ "${lines[0]}" == $'1\t0\t0' ]]
+}
+
+@test "agents: a missing ProgramArguments program fails and names the agent and the fix" {
+    agent com.user.fine ProgramArguments.0 /bin/sh
+    agent homebrew.mxcl.gone ProgramArguments.0 "$WORKDIR/opt/gone/bin/gone"
+    run_agents
+    [ "$status" -eq 0 ]
+    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "$output" == *"1 of 2 point at a missing program: homebrew.mxcl.gone "* ]]
+    [[ "$output" == *"launchctl bootout"* ]]
+    [[ "$output" != *"com.user.fine"* ]]
+}
+
+@test "agents: a missing Program key program fails too" {
+    agent homebrew.mxcl.gone Program "$WORKDIR/opt/gone/bin/gone"
+    run_agents
+    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "$output" == *"homebrew.mxcl.gone"* ]]
+}
+
+@test "agents: several orphans are one failure naming each" {
+    agent homebrew.mxcl.a ProgramArguments.0 "$WORKDIR/opt/a"
+    agent homebrew.mxcl.b ProgramArguments.0 "$WORKDIR/opt/b"
+    run_agents
+    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "$output" == *"2 of 2 point at a missing program: homebrew.mxcl.a, homebrew.mxcl.b "* ]]
+}
+
+@test "agents: a bare command name is not judged" {
+    agent com.user.fine ProgramArguments.0 /bin/sh
+    agent com.user.bare ProgramArguments.0 no-such-command-on-any-path
+    run_agents
+    [[ "${lines[0]}" == $'1\t0\t0' ]]
+}
+
+@test "agents: nothing judgeable skips rather than passes" {
+    agent com.user.bare ProgramArguments.0 no-such-command-on-any-path
+    agent com.user.unreadable Label com.user.unreadable
+    run_agents
+    [[ "${lines[0]}" == $'0\t0\t1' ]]
+}
+
+@test "agents: no LaunchAgents directory skips" {
+    mkdir -p "$WORKDIR/home"
+    run_agents
+    [[ "${lines[0]}" == $'0\t0\t1' ]]
+}
+
+@test "agents: no plutil skips rather than passes" {
+    agent homebrew.mxcl.gone ProgramArguments.0 "$WORKDIR/opt/gone/bin/gone"
+    run_agents no-plutil
+    [[ "${lines[0]}" == $'0\t0\t1' ]]
+}
