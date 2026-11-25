@@ -507,20 +507,24 @@ $(shield_line 'activated enabled')"
 }
 
 # ------------------------------------------------------------------------------
-# Orphaned LaunchAgents. The check is extracted by name and driven against a
-# scratch $HOME and a stubbed plutil, so neither the real machine's agents nor
-# a missing plutil (Linux CI) can affect it. A fixture "plist" is plain
-# `<key path>=<value>` lines, which is all the stub needs to answer -extract.
+# Orphaned launch items. The checks are extracted by name and driven against a
+# scratch $HOME, a scratch stand-in for /Library and a stubbed plutil, so
+# neither the real machine's launch items nor a missing plutil (Linux CI) can
+# affect them. A fixture "plist" is plain `<key path>=<value>` lines, which is
+# all the stub needs to answer -extract.
+#
+# Three directories are judged, one check each. A test that populates only the
+# per-user one therefore sees the two system checks skip: "<ok>\t<fail>\t2".
 # ------------------------------------------------------------------------------
 
 # run_agents [no-plutil] — print "<ok>\t<fail>\t<skip>" then any failure lines.
 run_agents() {
     local fn
     : >"$WORKDIR/agents.bash"
-    for fn in check check_launch_agents; do
+    for fn in check check_launch_items check_all_launch_items; do
         sed -n "/^$fn()/,/^}/p" "$SECURITY_AUDIT" >>"$WORKDIR/agents.bash"
     done
-    grep -q '^check_launch_agents()' "$WORKDIR/agents.bash"
+    grep -q '^check_all_launch_items()' "$WORKDIR/agents.bash"
 
     mkdir -p "$WORKDIR/bin"
     if [[ ${1:-} != no-plutil ]]; then
@@ -545,24 +549,27 @@ STUB
         HOME=$2 PATH=$3
         OK=0 FAIL=0 SKIP=0 FAILED=()
         source "$1"
-        check_launch_agents
+        check_all_launch_items "$4"
         printf "%s\t%s\t%s\n" "$OK" "$FAIL" "$SKIP"
         printf "%s\n" "${FAILED[@]:-}"
-    ' _ "$WORKDIR/agents.bash" "$WORKDIR/home" "$WORKDIR/bin"
+    ' _ "$WORKDIR/agents.bash" "$WORKDIR/home" "$WORKDIR/bin" "$WORKDIR/sys"
 }
 
-# agent <name> <key path> <program> — write one fixture plist.
-agent() {
-    mkdir -p "$WORKDIR/home/Library/LaunchAgents"
-    printf '%s=%s\n' "$2" "$3" >"$WORKDIR/home/Library/LaunchAgents/$1.plist"
+# launch_item <directory> <name> <key path> <program> — write one fixture plist.
+launch_item() {
+    mkdir -p "$1"
+    printf '%s=%s\n' "$3" "$4" >"$1/$2.plist"
 }
+agent() { launch_item "$WORKDIR/home/Library/LaunchAgents" "$@"; }
+system_agent() { launch_item "$WORKDIR/sys/Library/LaunchAgents" "$@"; }
+daemon() { launch_item "$WORKDIR/sys/Library/LaunchDaemons" "$@"; }
 
 @test "agents: every program present passes" {
     agent com.user.one ProgramArguments.0 /bin/sh
     agent com.user.two Program /bin/sh
     run_agents
     [ "$status" -eq 0 ]
-    [[ "${lines[0]}" == $'1\t0\t0' ]]
+    [[ "${lines[0]}" == $'1\t0\t2' ]]
 }
 
 @test "agents: a missing ProgramArguments program fails and names the agent and the fix" {
@@ -570,16 +577,16 @@ agent() {
     agent homebrew.mxcl.gone ProgramArguments.0 "$WORKDIR/opt/gone/bin/gone"
     run_agents
     [ "$status" -eq 0 ]
-    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "${lines[0]}" == $'0\t1\t2' ]]
     [[ "$output" == *"1 of 2 point at a missing program: homebrew.mxcl.gone "* ]]
-    [[ "$output" == *"launchctl bootout"* ]]
+    [[ "$output" == *"launchctl bootout gui/"*" ~/Library/LaunchAgents/<name>.plist"* ]]
     [[ "$output" != *"com.user.fine"* ]]
 }
 
 @test "agents: a missing Program key program fails too" {
     agent homebrew.mxcl.gone Program "$WORKDIR/opt/gone/bin/gone"
     run_agents
-    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "${lines[0]}" == $'0\t1\t2' ]]
     [[ "$output" == *"homebrew.mxcl.gone"* ]]
 }
 
@@ -587,7 +594,7 @@ agent() {
     agent homebrew.mxcl.a ProgramArguments.0 "$WORKDIR/opt/a"
     agent homebrew.mxcl.b ProgramArguments.0 "$WORKDIR/opt/b"
     run_agents
-    [[ "${lines[0]}" == $'0\t1\t0' ]]
+    [[ "${lines[0]}" == $'0\t1\t2' ]]
     [[ "$output" == *"2 of 2 point at a missing program: homebrew.mxcl.a, homebrew.mxcl.b "* ]]
 }
 
@@ -595,24 +602,56 @@ agent() {
     agent com.user.fine ProgramArguments.0 /bin/sh
     agent com.user.bare ProgramArguments.0 no-such-command-on-any-path
     run_agents
-    [[ "${lines[0]}" == $'1\t0\t0' ]]
+    [[ "${lines[0]}" == $'1\t0\t2' ]]
 }
 
 @test "agents: nothing judgeable skips rather than passes" {
     agent com.user.bare ProgramArguments.0 no-such-command-on-any-path
     agent com.user.unreadable Label com.user.unreadable
     run_agents
-    [[ "${lines[0]}" == $'0\t0\t1' ]]
+    [[ "${lines[0]}" == $'0\t0\t3' ]]
 }
 
-@test "agents: no LaunchAgents directory skips" {
+@test "agents: no launch item directory at all skips every check" {
     mkdir -p "$WORKDIR/home"
     run_agents
-    [[ "${lines[0]}" == $'0\t0\t1' ]]
+    [[ "${lines[0]}" == $'0\t0\t3' ]]
 }
 
 @test "agents: no plutil skips rather than passes" {
     agent homebrew.mxcl.gone ProgramArguments.0 "$WORKDIR/opt/gone/bin/gone"
+    daemon com.vendor.helper Program "$WORKDIR/opt/gone/helper"
     run_agents no-plutil
-    [[ "${lines[0]}" == $'0\t0\t1' ]]
+    [[ "${lines[0]}" == $'0\t0\t3' ]]
+}
+
+@test "agents: a missing system LaunchAgent program fails under its own name" {
+    system_agent com.vendor.updater Program "$WORKDIR/Applications/Gone.app/Contents/MacOS/Updater"
+    run_agents
+    [ "$status" -eq 0 ]
+    [[ "${lines[0]}" == $'0\t1\t2' ]]
+    [[ "$output" == *"System LaunchAgent programs exist — 1 of 1 point at a missing program: com.vendor.updater "* ]]
+    [[ "$output" == *"launchctl bootout gui/"*" /Library/LaunchAgents/<name>.plist"* ]]
+}
+
+@test "agents: a missing LaunchDaemon program fails and the fix targets the system domain" {
+    daemon com.vendor.helper ProgramArguments.0 "$WORKDIR/Library/PrivilegedHelperTools/com.vendor.helper"
+    run_agents
+    [ "$status" -eq 0 ]
+    [[ "${lines[0]}" == $'0\t1\t2' ]]
+    [[ "$output" == *"LaunchDaemon programs exist — 1 of 1 point at a missing program: com.vendor.helper "* ]]
+    [[ "$output" == *"launchctl bootout system /Library/LaunchDaemons/<name>.plist"* ]]
+}
+
+@test "agents: each directory is judged on its own" {
+    # Counts must not pool: a healthy per-user directory cannot hide an orphaned
+    # daemon, and the daemon's orphan must not be reported against the others.
+    agent com.user.fine ProgramArguments.0 /bin/sh
+    system_agent com.vendor.fine Program /bin/sh
+    daemon com.vendor.gone Program "$WORKDIR/opt/gone/helper"
+    run_agents
+    [[ "${lines[0]}" == $'2\t1\t0' ]]
+    [[ "$output" == *"LaunchDaemon programs exist — 1 of 1 point at a missing program: com.vendor.gone "* ]]
+    [[ "$output" != *"com.user.fine"* ]]
+    [[ "$output" != *"com.vendor.fine"* ]]
 }
