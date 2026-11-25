@@ -130,6 +130,29 @@ block() {
     exit 2
 }
 
+# The session's working directory, as the payload reports it. Prints nothing
+# when the field is absent or the payload will not parse: the push arm then
+# falls back to the project dir.
+PY_CWD='
+import json, sys
+
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+cwd = d.get("cwd") if isinstance(d, dict) else None
+if isinstance(cwd, str):
+    sys.stdout.write(cwd)
+'
+
+refuse_push_on_protected() {
+    case "$1" in
+        main | master)
+            block "Refusing 'git push' while on '$1'. Switch to a feature branch and open a PR."
+            ;;
+    esac
+}
+
 case "$scan" in
     *"chezmoi apply"*)
         block "Refusing 'chezmoi apply'. Always run 'chezmoi diff' first and surface the diff to the user for explicit approval. If approved, the user should run 'make apply' themselves in their terminal."
@@ -192,9 +215,25 @@ case "$scan" in
         # a push from another repo's feature branch is refused just because
         # *this* project sits on main. An explicit -C on the push invocation
         # wins; otherwise the last `cd` before the push in the same command;
-        # otherwise the project dir. When the resolved token is not usable
-        # (cd -, $(...), a quoted path with spaces), fall back to the project
-        # dir — the pre-fix behavior — which can only over-block.
+        # otherwise the session's working directory, which the payload reports
+        # as "cwd"; otherwise the project dir.
+        #
+        # The working directory is not always the project dir. In a git
+        # worktree it is the worktree, on its own branch, while the project dir
+        # stays on main — so a plain feature-branch push from a worktree was
+        # refused as a push "while on main".
+        #
+        # When a directory is named but not usable (cd -, $(...), a quoted path
+        # with spaces) there is no telling where the push runs, so it is refused
+        # if either the working directory or the project dir is on a protected
+        # branch. That can only over-block.
+        hook_cwd=$(printf '%s' "$payload" | /usr/bin/python3 -c "$PY_CWD" 2>/dev/null) || hook_cwd=""
+        [ -d "$hook_cwd" ] || hook_cwd=""
+        project_branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        cwd_branch=""
+        if [ -n "$hook_cwd" ]; then
+            cwd_branch=$(git -C "$hook_cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        fi
         push_dir=$(printf '%s' "$push_seg" \
             | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:]]+)[[:space:]]+push.*/\1/p' | head -n 1)
         if [ -z "$push_dir" ]; then
@@ -216,18 +255,19 @@ case "$scan" in
             "~") push_dir=$HOME ;;
             "~/"*) push_dir="$HOME/${push_dir#\~/}" ;;
         esac
-        _branch=""
         if [ -n "$push_dir" ]; then
-            # Cumulative -C: a relative cd path resolves against the project
-            # dir (the shell cwd when the hook's command runs), an absolute
-            # one overrides it — matching what the shell itself would do.
-            _branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" -C "$push_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-        fi
-        if [ -z "$_branch" ]; then
-            _branch=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-        fi
-        if [ "$_branch" = "main" ] || [ "$_branch" = "master" ]; then
-            block "Refusing 'git push' while on '$_branch'. Switch to a feature branch and open a PR."
+            # Cumulative -C: a relative path resolves against the directory
+            # the command starts in, an absolute one overrides it — matching
+            # what the shell itself would do.
+            _branch=$(git -C "${hook_cwd:-${CLAUDE_PROJECT_DIR:-.}}" -C "$push_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+            if [ -n "$_branch" ]; then
+                refuse_push_on_protected "$_branch"
+            else
+                refuse_push_on_protected "$cwd_branch"
+                refuse_push_on_protected "$project_branch"
+            fi
+        else
+            refuse_push_on_protected "${cwd_branch:-$project_branch}"
         fi
         exit 0
         ;;
