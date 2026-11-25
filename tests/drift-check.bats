@@ -617,6 +617,47 @@ EOF
     [ "$output" = "1" ]
 }
 
+# Write a zsh script that runs dot_zshrc's daily-runner block against a stubbed
+# brewup(). The runner is disowned, so the script itself waits for the stamp —
+# up to $1 tenths of a second — and nothing outlives it.
+stage_daily_runner() {
+    sed -n '/^# Auto-run brewup once per day/,/^# Short aliases/p' "$ZSHRC" >"$TMPHOME/runner.zsh"
+    grep -q 'BREWUP_STAMP' "$TMPHOME/runner.zsh"
+    cat >"$TMPHOME/drive.zsh" <<EOF
+BREWUP_STAMP='$HOME/.cache/brewup.last'
+BREWUP_LOG='$HOME/.cache/brewup.log'
+BREWUP_LOCK='$HOME/.cache/brewup.lock'
+brewup() { print ran; }
+source '$TMPHOME/runner.zsh'
+for _ in {1..$1}; do [[ -f \$BREWUP_STAMP ]] && break; sleep 0.1; done
+EOF
+}
+
+@test "daily runner starts brewup from a shell on a terminal" {
+    command -v zsh >/dev/null || skip "zsh not available"
+    command -v python3 >/dev/null || skip "python3 not available (needed for a pty)"
+    stage_daily_runner 50
+
+    run python3 -c 'import pty, sys; pty.spawn(sys.argv[1:])' zsh "$TMPHOME/drive.zsh" </dev/null
+    [ "$status" -eq 0 ]
+    [ "$(cat "$HOME/.cache/brewup.last")" = "$(date +%F)" ]
+    grep -q '^ran$' "$HOME/.cache/brewup.log"
+}
+
+@test "daily runner stays out of a shell with no terminal" {
+    # The shell an IDE or its updater starts to read the environment. A run
+    # begun there is killed with that app: brew upgrading JetBrains Toolbox
+    # took down the brewup that Toolbox's own updater had started.
+    command -v zsh >/dev/null || skip "zsh not available"
+    stage_daily_runner 10
+
+    run zsh "$TMPHOME/drive.zsh" </dev/null
+    [ "$status" -eq 0 ]
+    [ ! -e "$HOME/.cache/brewup.last" ]
+    [ ! -e "$HOME/.cache/brewup.log" ]
+    [ ! -e "$HOME/.cache/brewup.lock" ]
+}
+
 # ------------------------------------------------------------------------------
 # Audit protocol — `<audit> --quiet` prints one "<ok>\t<bad>\t<skip>" line and
 # exits 0/1/2; drift is column 2. Both audits reach the state file through

@@ -103,7 +103,7 @@ On the machine:
 
 | What | When | Where to look |
 |---|---|---|
-| Homebrew upgrade, then `brew doctor` and `brew cleanup` (both run even if the upgrade fails) | Once a day, in the first shell of the day | `brewlog` |
+| Homebrew upgrade, then `brew doctor` and `brew cleanup` (both run even if the upgrade fails) | Once a day, in the first terminal shell of the day | `brewlog` |
 | Drift banner | Every new shell; re-measured when the last check is over 4 hours old | `mac` to act |
 | Drift notification | 09:30 daily, only when there is drift | `mac` to act |
 | Brew install tracking | Every `brew` or `mas` install, uninstall, tap or untap | The banner shows the pending count; `mac` merges it into `Brewfile.tmpl` |

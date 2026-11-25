@@ -173,11 +173,17 @@ brewup() {
   return $rc
 }
 
-# Auto-run brewup once per day on first shell. Output is appended to
+# Auto-run brewup once per day on first terminal shell. Output is appended to
 # ~/.cache/brewup.log (last ~2000 lines kept); `brewlog` tails it.
 # A directory-based lock prevents concurrent runs when multiple shells
 # open in quick succession. Stale locks (>1h) are cleared on next entry.
 # Paths are defined above, next to brewup() itself.
+#
+# Terminal shells only: IDEs and their updaters start an interactive shell with
+# no terminal just to read the environment, and a run started there lives and
+# dies with that app. One started under a JetBrains Toolbox update was killed
+# mid-upgrade when brew reached the Toolbox cask and removed its launchd
+# service — the run took down its own parent.
 
 if [[ -d "$BREWUP_LOCK" ]]; then
   # Use the absolute BSD stat: Homebrew coreutils may shadow it on PATH with
@@ -188,7 +194,7 @@ if [[ -d "$BREWUP_LOCK" ]]; then
   unset _brewup_lock_mtime
 fi
 
-if [[ ! -f "$BREWUP_STAMP" || "$(date +%F)" != "$(cat "$BREWUP_STAMP" 2>/dev/null)" ]]; then
+if [[ -t 0 && -t 1 ]] && [[ ! -f "$BREWUP_STAMP" || "$(date +%F)" != "$(cat "$BREWUP_STAMP" 2>/dev/null)" ]]; then
   (
     if mkdir "$BREWUP_LOCK" 2>/dev/null; then
       trap 'rmdir "$BREWUP_LOCK" 2>/dev/null' EXIT INT TERM HUP
