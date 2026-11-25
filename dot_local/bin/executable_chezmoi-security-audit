@@ -27,7 +27,7 @@ chezmoi-security-audit [--drift] [--quiet] [-h]
 
 Checks: FileVault, SIP, Gatekeeper, firewall+stealth, guest account, auto-login,
 remote Apple Events, SSH remote login, NordVPN Shield extension off,
-LaunchAgents pointing at a missing program, SSH key passphrase, AWS creds perms, age key perms, GPG signing key expiry (if configured),
+LaunchAgents and LaunchDaemons pointing at a missing program, SSH key passphrase, AWS creds perms, age key perms, GPG signing key expiry (if configured),
 auto-update toggles and energy settings (pmset) — both read out of the sudo
 bootstrap script at run time, skipped if it cannot be sourced —
 softwareupdate pending.
@@ -214,18 +214,24 @@ check_nordvpn_shield() {
 check_nordvpn_shield
 
 # ------------------------------------------------------------------------------
-# LaunchAgents whose program is gone. launchd still loads the plist at every
-# login, so whatever later appears at that path runs unprompted — and the usual
-# leftover is a `brew services` plist pointing under /opt/homebrew, which is
-# user-writable. Nothing else reports these: uninstalling the formula leaves
-# the plist behind and chezmoi does not manage it.
+# Launch items whose program is gone. launchd still loads the plist at every
+# login or boot, so whatever later appears at that path runs unprompted.
+# Nothing else reports these: uninstalling the software leaves the plist behind
+# and chezmoi does not manage it.
+#
+# Per-user agents are usually `brew services` leftovers pointing under
+# /opt/homebrew, which is user-writable. The system-wide directories matter
+# more: a LaunchDaemon runs as root, and the usual leftover there points into
+# /Applications, which any admin account can write to without a password.
 #
 # Only absolute paths are judged; launchd resolves a bare name through its own
 # PATH. No plist yielding a judgeable path means the read told us nothing, so
 # skip rather than report a false pass.
 # ------------------------------------------------------------------------------
-check_launch_agents() {
-    local name="LaunchAgent programs exist" dir="$HOME/Library/LaunchAgents"
+
+# check_launch_items <check name> <directory> <fix, applied per orphan>
+check_launch_items() {
+    local name=$1 dir=$2 fix=$3
     local plist prog label judged=0 orphaned=0 orphans=""
     if [[ ! -d $dir ]] || ! command -v plutil >/dev/null 2>&1; then
         check "$name" skip
@@ -248,10 +254,22 @@ check_launch_agents() {
     elif ((orphaned == 0)); then
         check "$name" ok
     else
-        check "$name" fail "$orphaned of $judged point at a missing program: $orphans — for each, \`launchctl bootout gui/\$(id -u) ~/Library/LaunchAgents/<name>.plist\` then delete that plist"
+        check "$name" fail "$orphaned of $judged point at a missing program: $orphans — for each, $fix"
     fi
 }
-check_launch_agents
+
+# check_all_launch_items [root] — root relocates the two system directories so
+# the tests can stand in for /Library; the per-user one follows $HOME.
+check_all_launch_items() {
+    local root=${1:-}
+    check_launch_items "LaunchAgent programs exist" "$HOME/Library/LaunchAgents" \
+        "\`launchctl bootout gui/\$(id -u) ~/Library/LaunchAgents/<name>.plist\` then delete that plist"
+    check_launch_items "System LaunchAgent programs exist" "$root/Library/LaunchAgents" \
+        "\`launchctl bootout gui/\$(id -u) /Library/LaunchAgents/<name>.plist\` then \`sudo rm\` that plist"
+    check_launch_items "LaunchDaemon programs exist" "$root/Library/LaunchDaemons" \
+        "\`sudo launchctl bootout system /Library/LaunchDaemons/<name>.plist\` then \`sudo rm\` that plist"
+}
+check_all_launch_items
 
 # ------------------------------------------------------------------------------
 # SSH private keys — verify each one is passphrase-protected.
