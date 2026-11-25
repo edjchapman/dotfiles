@@ -6,7 +6,9 @@
 # suite runs the same on the Ubuntu CI runner (whose ping speaks a different
 # dialect) and never touches the network. Each stubbed host replays a script
 # of round-trip times from $STUBS/ping-<host>, one line per call; a `lost`
-# line answers like a timed-out ping.
+# line answers like a timed-out ping. A host listed in $STUBS/icmp-blocked
+# never answers, and curl's handshake timings (seconds, or `lost`) replay
+# from $STUBS/connect the same way.
 
 setup() {
     REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -20,6 +22,7 @@ setup() {
     cat >"$WORKDIR/bin/ping" <<'EOF'
 #!/usr/bin/env bash
 host=${*: -1}
+grep -qx "$host" "$STUBS/icmp-blocked" 2>/dev/null && exit 2
 if [[ " $* " == *" -c 1 "* ]]; then
     script="$STUBS/ping-$host"
     ms=$(head -1 "$script" 2>/dev/null)
@@ -40,7 +43,17 @@ echo "  interface: en0"
 EOF
     cat >"$WORKDIR/bin/curl" <<'EOF'
 #!/usr/bin/env bash
-printf 0.123
+if [[ "$*" == *time_connect* ]]; then
+    s=$(head -1 "$STUBS/connect" 2>/dev/null)
+    sed -i.bak 1d "$STUBS/connect" 2>/dev/null
+    [[ -z $s || $s == lost ]] && {
+        printf 0.000000
+        exit 7
+    }
+    printf %s "$s"
+else
+    printf 0.123
+fi
 EOF
     # Logs each requested delay; `interrupt` in $STUBS/sleep-mode makes the
     # first sleep deliver Ctrl-C to net-check instead.
@@ -107,6 +120,34 @@ pings() { # <host> <ms|lost>...
     run "$NET_CHECK" --watch --count 2
     [ "$status" -eq 0 ]
     [[ ${lines[${#lines[@]} - 1]} == *"router >100ms 100% (2/2), max 0 ms, lost 2"* ]]
+}
+
+@test "watch: a router that ignores pings is timed by TCP handshake instead" {
+    echo 192.168.1.254 >"$STUBS/icmp-blocked"
+    # The first handshake is the probe that picks the method.
+    printf '%s\n' 0.005 0.007 0.250 lost >"$STUBS/connect"
+    pings 1.1.1.1 9 9 9
+    run "$NET_CHECK" --watch --count 3 tcp
+    [ "$status" -eq 0 ]
+    [[ ${lines[0]} == *"router(tcp) 7 ms"*"1.1.1.1 9 ms" ]]
+    [[ ${lines[2]} == *"router(tcp) lost"* ]]
+    [[ ${lines[3]} == *"router(tcp) >100ms 66% (2/3), max 250 ms, lost 1"* ]]
+}
+
+@test "watch: a router answering neither pings nor TCP still reads as lost pings" {
+    echo 192.168.1.254 >"$STUBS/icmp-blocked"
+    pings 1.1.1.1 6 6
+    run "$NET_CHECK" --watch --count 2
+    [ "$status" -eq 0 ]
+    [[ ${lines[${#lines[@]} - 1]} == *"| router >100ms 100% (2/2), max 0 ms, lost 2"* ]]
+}
+
+@test "snapshot: a router that ignores pings reports TCP handshake avg / max" {
+    echo 192.168.1.254 >"$STUBS/icmp-blocked"
+    printf '%s\n' 0.005 0.004 0.004 0.004 0.004 0.004 0.004 0.004 0.004 0.004 0.014 >"$STUBS/connect"
+    run "$NET_CHECK" after
+    [ "$status" -eq 0 ]
+    [[ $output == "after "*"| router(tcp) 5 / 14 ms "*"| 1.1.1.1 4 / 8 ms "*"| via en0" ]]
 }
 
 @test "usage errors exit 2 without sampling" {

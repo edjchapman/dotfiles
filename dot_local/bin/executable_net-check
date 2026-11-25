@@ -4,8 +4,9 @@
 # Measures the router hop separately from the internet, so a slow first hop
 # (radio or local filtering) is told apart from a slow ISP or VPN. Run it
 # before and after each change and compare the lines. Healthy on this
-# network: router ~5 ms avg, HTTPS < 1 s; see docs/troubleshooting.md,
-# "Network", for the signatures this was built to tell apart.
+# network: router ~5 ms avg, HTTPS < 1 s; see
+# docs/runbooks/network-slowdowns.md for the signatures this was built to
+# tell apart.
 #
 # Usage: net-check [label]
 #        net-check --watch [--every SECS] [--count N] [label]
@@ -13,11 +14,14 @@
 # --watch pings the router and 1.1.1.1 once per sample (default every 10 s,
 # 180 samples = 30 min), prints each sample, then a summary line with the
 # share over 100 ms. Ctrl-C stops early and still prints the summary.
+#
+# A router that ignores pings but accepts a connection on port 80 is timed
+# by that TCP handshake instead, and its column reads "router(tcp)".
 # Exit: 0 — it reports, it doesn't judge (2 on a usage error).
 
 set -uo pipefail
 
-usage() { sed -n '2,16s/^# \{0,1\}//p' "$0"; }
+usage() { sed -n '2,20s/^# \{0,1\}//p' "$0"; }
 
 watch=0 every=10 count=180 label=""
 while (($# > 0)); do
@@ -66,6 +70,34 @@ ping_once() {
                          END { if (!found) print "lost" }'
 }
 
+# One TCP handshake with the router's web port in whole ms, or "lost". curl's
+# exit status is ignored: the handshake time stands even when the HTTP
+# exchange after it fails.
+tcp_once() {
+    curl -s -o /dev/null -m 5 -w '%{time_connect}' "http://$1/" 2>/dev/null \
+        | awk '{ s = $1 } END { if (s > 0) printf "%.0f\n", s * 1000; else print "lost" }'
+}
+
+tcp_stats() { # <host> <count>: "avg / max ms" over the handshakes that completed
+    local i
+    for ((i = 0; i < $2; i++)); do tcp_once "$1"; done \
+        | awk '$1 != "lost" { n++; sum += $1; if ($1 > max) max = $1 }
+               END { if (n) printf "%.0f / %.0f ms", sum / n, max }'
+}
+
+# Pings to the router can go unanswered while it still accepts connections.
+# The method is chosen once per run, so every sample in it is comparable, and
+# only switches when TCP actually works: a dead hop still reads as lost pings.
+router_name=router
+if [ -n "$gw" ] && ! ping -c 3 -i 0.2 -t 2 "$gw" >/dev/null 2>&1 \
+    && [[ $(tcp_once "$gw") != lost ]]; then
+    router_name="router(tcp)"
+fi
+
+router_once() {
+    if [[ $router_name == router ]]; then ping_once "$1"; else tcp_once "$1"; fi
+}
+
 with_unit() { if [[ $1 == lost ]]; then echo lost; else echo "$1 ms"; fi; }
 
 # Lost samples count as slow: the spells this hunts showed up as multi-second
@@ -89,22 +121,26 @@ if ((watch)); then
     stop=0
     trap 'stop=1' INT
     for ((i = 1; i <= count && stop == 0; i++)); do
-        r=$(ping_once "$gw")
+        r=$(router_once "$gw")
         n=$(ping_once 1.1.1.1)
         ((stop)) && break
         routers+=("$r")
         internets+=("$n")
-        printf '%s  router %-8s  1.1.1.1 %s\n' "$(date +%T)" "$(with_unit "$r")" "$(with_unit "$n")"
+        printf '%s  %s %-8s  1.1.1.1 %s\n' "$(date +%T)" "$router_name" "$(with_unit "$r")" "$(with_unit "$n")"
         ((i < count && stop == 0)) && sleep "$every"
     done
     trap - INT
     printf '%-24s | %d samples, %d s apart | %s | %s\n' "$label" "${#routers[@]}" "$every" \
-        "$(summarise router ${routers[@]+"${routers[@]}"})" \
+        "$(summarise "$router_name" ${routers[@]+"${routers[@]}"})" \
         "$(summarise 1.1.1.1 ${internets[@]+"${internets[@]}"})"
     exit 0
 fi
 
-router=$([ -n "$gw" ] && ping_stats "$gw" 30)
+if [[ $router_name == router ]]; then
+    router=$([ -n "$gw" ] && ping_stats "$gw" 30)
+else
+    router=$(tcp_stats "$gw" 10)
+fi
 internet=$(ping_stats 1.1.1.1 15)
 
 https=""
@@ -115,5 +151,5 @@ done
 
 iface=$(route -n get default 2>/dev/null | awk '/interface:/ { print $2 }')
 
-printf '%-24s | router %-14s | 1.1.1.1 %-14s | https %s| via %s\n' \
-    "$label" "${router:-FAIL}" "${internet:-FAIL}" "$https" "${iface:-none}"
+printf '%-24s | %s %-14s | 1.1.1.1 %-14s | https %s| via %s\n' \
+    "$label" "$router_name" "${router:-FAIL}" "${internet:-FAIL}" "$https" "${iface:-none}"

@@ -11,7 +11,7 @@ How to find the slow hop, and the record of the Oct–Nov 2026 investigation on 
 
 ## Wi-Fi latency spikes, HTTPS requests time out
 
-**Find the slow hop first.** `net-check [label]` prints router and `1.1.1.1` ping, an HTTPS timing and the default route on one line; run it before and after each change. If the router ping alone carries the delay, the problem is between the Mac and the hub, not the ISP.
+**Find the slow hop first.** `net-check [label]` prints router and `1.1.1.1` ping, an HTTPS timing and the default route on one line; run it before and after each change. If the router ping alone carries the delay, the problem is between the Mac and the hub, not the ISP. A column headed `router(tcp)` means the router ignored pings, so `net-check` timed opening a connection to it instead; compare it only with other `router(tcp)` runs.
 
 **Then check another device.** Ping the router (or load a page) from a phone on the same Wi-Fi during a slow spell. Phone slow too ➜ the hub or the airspace, not the Mac — power-cycle the hub and check its connected-devices list for a device saturating it.
 
