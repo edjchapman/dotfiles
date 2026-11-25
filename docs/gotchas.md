@@ -115,6 +115,8 @@ Things that have bitten the maintainer and would bite a new contributor — coll
 
     The mirror-image defect: a raw substring match also fires on a guarded phrase that is merely *quoted as data*, so a commit message discussing `chezmoi apply` was refused. Heredoc bodies are now stripped before matching — but only when nothing in the command could execute them. `bash <<EOF`, `… | sh`, `python3 -c`, `xargs` and friends keep their bodies scanned, because there the body **is** code.
 
+    A push is judged by the branch of the directory it runs in: an explicit `git -C <dir>` or a preceding `cd <dir>`, else the session's working directory (the payload's `cwd` field), else `$CLAUDE_PROJECT_DIR`. Judging by the project dir alone was wrong in both directions: it refused a feature-branch push from a git worktree because the main checkout sat on `main`, and it allowed an implicit push from a working directory on `main` whenever the project dir sat on a feature branch.
+
     When the guard does block a command, its message tells the agent to stop and ask rather than reach the same outcome by another route (`gh api`, `git clean`, a script file).
 
     Both directions are pinned by `tests/guard-destructive.bats`, which builds payloads with a real JSON encoder. The previous suite interpolated into a format string and therefore *could not express* a command containing a quote — which is precisely why the fail-open survived 14 passing tests. If you touch this hook, run those tests against the old version first and watch them go red.

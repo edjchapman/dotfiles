@@ -3,8 +3,8 @@
 # Exit 0 = allow the tool call, exit 2 = block it.
 #
 # A temp git repo on a known branch makes the hook's current-branch check
-# (git rev-parse in $CLAUDE_PROJECT_DIR) deterministic. No chezmoi/network
-# needed.
+# (git rev-parse in the payload's cwd, else $CLAUDE_PROJECT_DIR) deterministic.
+# No chezmoi/network needed.
 #
 # The payload is built with a real JSON encoder rather than string
 # interpolation. That matters: the hook used to extract the command with
@@ -44,6 +44,13 @@ teardown() {
 guard() {
     printf '%s' "$1" \
         | /usr/bin/python3 -c 'import json,sys; sys.stdout.write(json.dumps({"tool_input": {"command": sys.stdin.read()}}))' \
+        | bash "$GUARD"
+}
+
+# As guard, with the session's working directory in the payload: guard_in <cwd> <command>.
+guard_in() {
+    printf '%s' "$2" \
+        | /usr/bin/python3 -c 'import json,sys; sys.stdout.write(json.dumps({"cwd": sys.argv[1], "tool_input": {"command": sys.stdin.read()}}))' "$1" \
         | bash "$GUARD"
 }
 
@@ -369,6 +376,73 @@ guard_raw() {
 @test "a cd after the push does not affect the branch check" {
     git -C "$TMPREPO" checkout -q main
     run guard "git push && cd $OTHERREPO"
+    [ "$status" -eq 2 ]
+}
+
+# ------------------------------------------------------------------------------
+# The session's working directory. A push with no -C and no cd runs there, and
+# the payload reports it as "cwd". Regression for two defects of judging such a
+# push by $CLAUDE_PROJECT_DIR alone: a feature-branch push from a git worktree
+# was refused because the project dir sat on main, and — the fail-open
+# direction — an implicit push from a working directory on main was allowed
+# whenever the project dir sat on a feature branch.
+# ------------------------------------------------------------------------------
+
+@test "allows a push from a worktree on a feature branch while the project dir is on main" {
+    git -C "$TMPREPO" checkout -q main
+    git -C "$TMPREPO" worktree add -q "$TMPREPO/wt" -b wt-feature
+    run guard_in "$TMPREPO/wt" "git push -u origin wt-feature"
+    [ "$status" -eq 0 ]
+    run guard_in "$TMPREPO/wt" "git push"
+    [ "$status" -eq 0 ]
+}
+
+@test "blocks an implicit push from a working directory on main while the project dir is on a feature branch" {
+    git -C "$OTHERREPO" checkout -q main
+    run guard_in "$OTHERREPO" "git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "an explicit cd wins over the working directory" {
+    git -C "$TMPREPO" checkout -q main
+    git -C "$TMPREPO" worktree add -q "$TMPREPO/wt" -b wt-feature
+    run guard_in "$TMPREPO/wt" "cd $TMPREPO && git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "a relative cd resolves against the working directory" {
+    git -C "$OTHERREPO" checkout -q main
+    run guard_in "$(dirname "$OTHERREPO")" "cd $(basename "$OTHERREPO") && git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "an unresolvable push dir is refused when the working directory is on main" {
+    git -C "$OTHERREPO" checkout -q main
+    run guard_in "$OTHERREPO" 'cd "$(mktemp -d)" && git push'
+    [ "$status" -eq 2 ]
+}
+
+@test "an unresolvable push dir is refused when only the project dir is on main" {
+    git -C "$TMPREPO" checkout -q main
+    run guard_in "$OTHERREPO" 'cd "$(mktemp -d)" && git push'
+    [ "$status" -eq 2 ]
+}
+
+@test "a working directory that is not a git repo falls back to the project dir" {
+    git -C "$TMPREPO" checkout -q main
+    run guard_in "$BATS_TEST_TMPDIR" "git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "a working directory that does not exist falls back to the project dir" {
+    git -C "$TMPREPO" checkout -q main
+    run guard_in "$TMPREPO/no-such-dir" "git push"
+    [ "$status" -eq 2 ]
+}
+
+@test "a non-string cwd falls back to the project dir" {
+    git -C "$TMPREPO" checkout -q main
+    run guard_raw '{"cwd": 7, "tool_input": {"command": "git push"}}'
     [ "$status" -eq 2 ]
 }
 
